@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+// Copyright (C) 2026 The Regents of the University of Michigan
+// This file is part of COMPAS, free software under the GNU General Public License,
+// version 3 or later, with an additional permission under section 7. It comes with
+// ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
+
+#ifndef Operators_Compressible6Eq_H_
+#define Operators_Compressible6Eq_H_
+
+#include<FVM_Reconstruction2Face_Conservative_Godunov_D_Compressible6Eq.H>
+#include<FVM_Reconstruction2Face_Conservative_MUSCL_D_Compressible6Eq.H>
+#include<FVM_Reconstruction2Face_Conservative_WENO3_D_Compressible6Eq.H>
+#include<FVM_Reconstruction2Face_Conservative_WENO3B_D_Compressible6Eq.H>
+#include<FVM_Reconstruction2Face_Conservative_WENO5_D_Compressible6Eq.H>
+#include<FVM_Reconstruction2Face_Conservative_WENO5B_D_Compressible6Eq.H>
+
+#include<FVM_Reconstruction2FaceLR_Conservative_Godunov_D_Compressible6Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_MUSCL_D_Compressible6Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO3_D_Compressible6Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO3B_D_Compressible6Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO5_D_Compressible6Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO5B_D_Compressible6Eq.H>
+
+#include<FVM_Reconstruction2FaceLR_Conservative_Godunov_K_Compressible6Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_MUSCL_K_Compressible6Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO3_K_Compressible6Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO3B_K_Compressible6Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO5_K_Compressible6Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO5B_K_Compressible6Eq.H>
+
+#include<FVM_Reconstruction2FaceLR_Conservative_K_Compressible6Eq.H>
+#include<FVM_Reconstruction2Face_Conservative_THINC_K_Compressible6Eq.H>
+#include<FVM_Conservative2FluxHyperbolic_K_Compressible6Eq.H>
+
+#include<FVM_SurfaceIntegralNC_Compressible6Eq.H>
+
+#endif

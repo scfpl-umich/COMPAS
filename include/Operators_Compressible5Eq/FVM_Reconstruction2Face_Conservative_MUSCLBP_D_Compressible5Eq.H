@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+// Copyright (C) 2026 The Regents of the University of Michigan
+// This file is part of COMPAS, free software under the GNU General Public License,
+// version 3 or later, with an additional permission under section 7. It comes with
+// ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
+
+#ifndef FVM_Reconstruction2Face_Conservative_MUSCLBP_D_Compressible5Eq_H_
+#define FVM_Reconstruction2Face_Conservative_MUSCLBP_D_Compressible5Eq_H_
+
+#include<Macros.H>
+#if (PHYSICS==FIVEEQS)
+
+AMREX_GPU_DEVICE
+AMREX_FORCE_INLINE
+void FVM_Reconstruction2Face_Conservative_MUSCLBP_D(amrex::Array<amrex::Real,4+AMREX_SPACEDIM>& Conservative_Face,
+                                                    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> const& Conservative_m,
+                                                    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> const& Conservative_c,
+                                                    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> const& Conservative_p,
+                                                    Parm const& EOS_Parameter,
+                                                    amrex::Real const& dx,
+                                                    int ID_Face,
+                                                    int ID_Limiter)
+{
+    int ID_FaceRe;
+    //fL_fp
+    ID_FaceRe = 1;
+    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> ConservativeL_fp;
+    FVM_Reconstruction2Face_Conservative_MUSCL_D(ConservativeL_fp,
+                                                 Conservative_m, Conservative_c, Conservative_p,
+                                                 EOS_Parameter,
+                                                 dx,
+                                                 ID_FaceRe, ID_Limiter);
+    //fR_fm
+    ID_FaceRe = -1;
+    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> ConservativeR_fm;
+    FVM_Reconstruction2Face_Conservative_MUSCL_D(ConservativeR_fm,
+                                                 Conservative_m, Conservative_c, Conservative_p,
+                                                 EOS_Parameter,
+                                                 dx,
+                                                 ID_FaceRe, ID_Limiter);
+
+    //Energy bound
+    amrex::Real Weight = 1.0/6.0;
+    FVM_Reconstruction2Face_Conservative_LimiterBound(Conservative_Face,
+                                                      Conservative_c, ConservativeL_fp, ConservativeR_fm,
+                                                      EOS_Parameter,
+                                                      Weight,
+                                                      ID_Face);
+    
+}
+
+#endif
+#endif

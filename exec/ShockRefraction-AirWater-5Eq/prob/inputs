@@ -1,0 +1,138 @@
+# =====================================================================
+# SHOCK REFRACTION OVER A WATER WEDGE
+# A Mach 1.46 shock in air (material 1) runs along a slip wall and meets
+# the inclined surface of a wedge of water (material 2), after the
+# experiments and simulations of Anbu Serene Raj et al. (J. Fluid Mech.
+# 998, A49, 2024). The pattern is pseudo-steady, and it depends on the
+# angle beta between the shock and the interface: regular refraction with
+# a transmitted shock (RRR) below about 19.7 degrees, where the trace speed
+# of the shock on the interface falls to the sound speed of the water,
+# and a free precursor wave in the water ahead of a regular (FPR) or Mach
+# (FMR) reflection in the air above it. The case exercises THINC at an
+# air-water interface that starts sharp, a stiffened gas and a user inflow
+# boundary. SI units.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# stop_time is when the refraction point reaches y = 32 mm, 0.8 of the
+# height: 20.9e-6 at beta = 15, 27.6e-6 at 20.5, 40.4e-6 at 30, 79.2e-6 at 50
+# =====================================================================
+max_step  = 100000          # Maximum number of time steps to advance
+stop_time = 79.2e-6         # Maximum physical time to integrate to (s)
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# The apex of the wedge is at the origin, on the bottom wall
+# =====================================================================
+geometry.prob_lo     = -0.020  0.000  0.000  # Lower bounds (x,y,z), m
+geometry.prob_hi     =  0.080  0.040  0.001  # Upper bounds (x,y,z), m
+geometry.is_periodic =  0      0      0     # Periodicity flags in each direction
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 1 4 4            # Post-shock inflow on the left (BoundaryFill_User), slip wall below
+run.hi_bc = 2 2 4            # Outflow on the right and at the top
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1              # AMR verbosity level
+run.sum_var = 4              # Index of the conservative variable to sum (rho_E in 2D)
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# 200 x 80 square cells of 0.5 mm and two levels, 0.125 mm at the finest level
+# =====================================================================
+amr.n_cell      = 200 80 8   # Base grid resolution (coarsest level)
+amr.max_level   = 2          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2    # Refinement ratio between levels
+amr.n_error_buf = 2          # Buffer around tagged cells for refinement
+
+amr.blocking_factor_x = 8    # Minimum grid block size in x
+amr.blocking_factor_y = 8    # Minimum grid block size in y
+amr.blocking_factor_z = 8    # Minimum grid block size in z
+amr.max_grid_size     = 64   # Maximum grid patch size
+amr.regrid_int        = 2    # Regrid every N steps
+amr.Interpolater      = "lincc_interp" # Coarse-fine BC interpolater
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.3         # CFL number for stability
+run.do_subcycle             = 1           # Subcycle child levels in time
+run.check_cfl               = 0           # Enable/disable CFL safety checks
+run.timestep_change_limiter = 0           # Limit timestep growth/shrink
+run.TimeIntegrator          = "TVD-RK3"   # Time integration scheme
+run.do_reflux               = 1           # Enable refluxing
+
+
+# =====================================================================
+# REFINEMENT CRITERIA
+# Refine on the interface (0.01 < a1 < 0.99) and on the waves, where the
+# pressure changes by more than 5 kPa per base cell (1e7 Pa/m)
+# =====================================================================
+run.refine.ref_vars        = a1 P
+run.refine.a1.max_level    = 10
+run.refine.a1.value_range  = 0.01 0.99  0.01 0.99  0.01 0.99  0.01 0.99
+run.refine.P.max_level     = 10
+run.refine.P.grad          = 5000 2500 1250 625
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/Refraction      # Output file prefix
+amr.plot_int         = 1000000                # Plotfiles are written by time instead
+amr.t_write_interval = 5.0e-6                 # Write a plotfile every 5 microseconds
+run.output_vars      = rho u v P a1           # Variables in the plotfiles
+amr.chk_file         = ./checkpoints/chk      # Prefix for checkpoint files
+amr.chk_int          = -1                     # No checkpoints
+run.user_output_int  = 1                      # Incident shock, refraction point and precursor every coarse step
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.source_term   = 0            # Five-equation model with alpha only advected, as in the paper (K = 0)
+Physics.RiemannSolver = "HLLC"       # Riemann solver type
+
+FiniteVolume.Scheme = "MUSCL-vanLeer" # FV reconstruction scheme, MUSCL with the van Leer limiter
+FiniteVolume.THINC  = 1              # THINC reconstruction of the interface
+FiniteVolume.THINC.Beta            = 2.3     # Interface steepness
+FiniteVolume.THINC.EPS             = 1.0e-4  # Cells with alpha within EPS of 0 or 1 use MUSCL
+FiniteVolume.THINC.UseNormal       = 1       # Multidimensional THINC along the interface normal
+FiniteVolume.THINC.NormalThreshold = 0.4
+
+PhaseField.phase_field    = 0        # Phase-Field off (THINC keeps the interface sharp)
+PhaseField.Eta_Multiplier = 0.5      # Interface width Eta = f*Dx (finest level) of the Phase-Field
+
+run.QuadratureIC = 0                 # Sharp initial interface: ProblemICBC.H gives the exact cell averages
+
+
+# =====================================================================
+# PROBLEM-SPECIFIC PARAMETERS
+# =====================================================================
+# Air is an ideal gas, and water a stiffened gas with the parameters of the paper
+# (Yeom and Chang 2013), which give a sound speed of 1503 m/s at 1053 kg/m^3
+prob.EOS.EOS     = 1
+prob.EOS.gamma_1 = 1.4
+prob.EOS.gamma_2 = 2.8
+prob.EOS.pinf_1  = 0.0
+prob.EOS.pinf_2  = 8.5e8
+
+prob.rho_air   = 1.17665     # Air density ahead of the shock (kg/m^3), the paper's Table 2
+prob.rho_water = 1053.018    # Water density (kg/m^3)
+prob.P0        = 101325.0    # Pressure of both fluids at rest (Pa)
+prob.Mach      = 1.46        # Shock Mach number in air
+prob.beta      = 50.0        # Angle between the shock and the interface (degrees), 90 - wedge angle
+prob.x0        = 0.0         # Apex of the wedge on the bottom wall (m)
+prob.x_s       = -0.002      # Initial position of the shock (m), 2 mm ahead of the apex

@@ -1,0 +1,9 @@
+# Python packages for the COMPAS scripts and the tutorial analysis.
+# The scripts create scripts/compas_python_env and install these on first use, or run
+#   python3 -m venv scripts/compas_python_env
+#   scripts/compas_python_env/bin/pip install -r scripts/requirements.txt
+numpy
+matplotlib
+scipy
+yt
+contourpy

@@ -1,0 +1,146 @@
+# =====================================================================
+# SINGLE-MODE RAYLEIGH-TAYLOR INSTABILITY
+# A heavy fluid (material 1, density 3) rests above a light fluid (material 2,
+# density 1) in a gravity field g = -1 in y (Rayleigh 1883, Taylor 1950). The
+# interface is y = a0 cos(2 pi x/lambda) with lambda = 1, and half a wavelength
+# is simulated between slip walls. The initial pressure is hydrostatic in each
+# column, P0 at y = 0, and P0 is large compared with rho g L, so the flow is nearly
+# incompressible. Both fluids are viscous. Nondimensional units.
+#
+# In the test suite this case exercises the user source term hook, which adds
+# gravity to the momentum and energy equations, together with viscous fluxes
+# and THINC reconstruction.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 1000000          # Maximum number of time steps to advance
+stop_time = 10.0             # Maximum physical time to integrate to
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# =====================================================================
+geometry.prob_lo     =  0.0 -2.0 -1.0   # Lower bounds (x,y,z)
+geometry.prob_hi     =  0.5  2.0  1.0   # Upper bounds (x,y,z): half a wavelength in x
+geometry.is_periodic =  0    0    0
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 4 4 4            # Slip walls on all sides
+run.hi_bc = 4 4 4
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1              # AMR verbosity level
+run.sum_var = 0              # Index of the state variable summed each step (conservation and NaN check)
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# 16 x 128 square cells and two levels, 64 x 512 at the finest level
+# =====================================================================
+amr.n_cell      = 16 128 8   # Base grid resolution (coarsest level)
+amr.max_level   = 2          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2 2 2
+amr.n_error_buf = 1          # Buffer around tagged cells for refinement
+
+amr.blocking_factor_x = 8
+amr.blocking_factor_y = 8
+amr.blocking_factor_z = 8
+amr.max_grid_size     = 8
+amr.regrid_int        = 1
+amr.Interpolater      = "quartic_interp"
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.4
+run.do_subcycle             = 1
+run.check_cfl               = 0
+run.timestep_change_limiter = 0
+run.TimeIntegrator          = "TVD-RK3"
+run.do_reflux               = 1
+
+
+# =====================================================================
+# REFINEMENT CRITERIA: the gradients of alpha_1 and of the density
+# =====================================================================
+run.refine.ref_vars = a1 rho
+
+run.refine.a1.max_level  = 10
+run.refine.a1.grad       = 0.1 0.1 0.1 0.1 0.1 0.1 0.1
+
+run.refine.rho.max_level = 10
+run.refine.rho.grad      = 0.1 0.1 0.1 0.1 0.1 0.1 0.1
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/RTI-5Eq
+amr.plot_int         = 1000000
+amr.t_write_interval = 0.05                # A plotfile every 0.05 time units
+run.output_vars      = a1rho1 rho u v P a1
+amr.chk_file         = ./checkpoints/chk
+amr.chk_int          = 20000
+# run.user_output_int is unset, so the UserOutputFunction runs with each plotfile
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.source_term   = 0                  # Five-equation model without the K div(u) term
+Physics.RiemannSolver = "HLLC"
+
+FiniteVolume.Scheme = "MUSCL-MC"
+FiniteVolume.THINC  = 1                    # THINC reconstruction of the interface
+FiniteVolume.THINC.Beta            = 2.3
+FiniteVolume.THINC.EPS             = 1.0e-4
+FiniteVolume.THINC.UseNormal       = 1
+FiniteVolume.THINC.NormalThreshold = 0.4
+FiniteVolume.THINC.Multi           = 1     # Multi-dimensional THINC face averages
+FiniteVolume.THINC.FaceState       = 1     # Only the THINC side of a face is rebuilt; u and p keep the base scheme
+FiniteVolume.THINC.PhaseDensity    = 1     # Phase densities of the cell (use together with FaceState = 1)
+
+PhaseField.phase_field    = 0              # 1 for Phase-Field regularization of the interface
+PhaseField.cfl            = 0.3            # This and the next two apply when phase_field = 1
+PhaseField.Mechanism      = "ACDI"
+PhaseField.ID_ExplicitRC  = 1
+PhaseField.Eta_Multiplier = 0.5            # Initial interface width, eta = 0.5 finest cells
+
+
+# =====================================================================
+# MATERIALS AND PROBLEM
+# Material 1 (heavy) is above the interface, material 2 (light) below.
+# =====================================================================
+prob.EOS.EOS     = 1                       # Stiffened gas, here with pinf = 0 (ideal gases)
+prob.EOS.gamma_1 = 1.4
+prob.EOS.gamma_2 = 1.4
+prob.EOS.pinf_1  = 0.0
+prob.EOS.pinf_2  = 0.0
+
+prob.EOS.mu_1    = 0.001                   # Shear viscosities
+prob.EOS.mu_2    = 0.001
+prob.EOS.muB_1   = 0.0                     # Bulk viscosities
+prob.EOS.muB_2   = 0.0
+prob.EOS.kappa_1 = 0.0                     # No heat conduction
+prob.EOS.kappa_2 = 0.0
+prob.EOS.cv_1    = 1.0
+prob.EOS.cv_2    = 1.0
+
+prob.rho1 = 3.0                            # Heavy-fluid density
+prob.rho2 = 1.0                            # Light-fluid density
+prob.a0   = 0.1                            # Perturbation amplitude
+prob.P0   = 100                            # Pressure at y = 0
+
+prob.gx = 0.0                              # Gravity (prob.gz is read only in 3D)
+prob.gy = -1.0

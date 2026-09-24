@@ -1,0 +1,120 @@
+# =====================================================================
+# SHU-OSHER SHOCK TUBE
+# The shock-entropy wave interaction of Shu and Osher (J. Comput. Phys. 83,
+# 1989): a Mach 3 shock at x = -4 runs into the density perturbation
+# rho = 1 + 0.2 sin(5x), run to t = 1.8. Single fluid with gamma = 1.4 on
+# a thin periodic strip in y. The case runs the two-phase five-equation model
+# with AMR and WENO5, and variants.txt swaps in the other reconstruction schemes.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 100000          # Maximum number of time steps to advance
+stop_time = 1.8
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# =====================================================================
+geometry.prob_lo     = -5.0  0.0      # Lower bounds (x,y)
+geometry.prob_hi     =  5.0  0.3125   # Upper bounds (x,y), four cells in y
+geometry.is_periodic =  0    1        # Periodic in y, so the problem stays one-dimensional
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 2 0              # Outflow at both ends of the tube, periodic in y
+run.hi_bc = 2 0
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1
+run.sum_var = 0
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# 128 x 4 square cells and two levels, 512 cells along the tube at the finest level
+# =====================================================================
+amr.n_cell      = 128 4      # Base grid resolution (coarsest level)
+amr.max_level   = 2          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2 2 2
+amr.n_error_buf = 1          # Buffer around tagged cells for refinement
+
+amr.blocking_factor_x = 8    # Not 4: with 4, level 1 extends only 2 cells past level 2, and
+                             # WENO5 with lincc_interp needs 3 to fill the ghost cells
+amr.blocking_factor_y = 4
+amr.max_grid_size     = 16
+amr.regrid_int        = 1
+amr.grid_eff          = 0.9  # Fraction of tagged cells a patch must have, high to keep patches separate
+amr.Interpolater      = "lincc_interp"
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.4
+run.do_subcycle             = 1
+run.check_cfl               = 0
+run.timestep_change_limiter = 0
+run.TimeIntegrator          = "TVD-RK3"
+run.do_reflux               = 1
+
+
+# =====================================================================
+# REFINEMENT CRITERIA: jumps in pressure and density between neighboring
+# cells. The density threshold is low enough to keep the entropy waves refined.
+# =====================================================================
+run.refine.ref_vars      = P rho
+run.refine.P.max_level   = 10
+run.refine.P.grad        = 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3
+run.refine.rho.max_level = 10
+run.refine.rho.grad      = 0.15 0.15 0.15 0.15 0.15 0.15 0.15 0.15 0.15 0.15
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/ShuOsher-5Eq
+amr.plot_int         = 1000000
+amr.t_write_interval = 0.1                 # A plotfile every 0.1
+run.output_vars      = rho u P
+amr.chk_file         = ./checkpoints/chk
+amr.chk_int          = 20000
+run.user_output_int  = 1                   # Shock position every coarse step
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.source_term   = 1                  # Five-equation model with the K div(u) term
+Physics.RiemannSolver = "HLLC"
+
+FiniteVolume.Scheme = "WENO5"              # Compared with the other schemes in variants.txt
+FiniteVolume.THINC  = 0
+FiniteVolume.THINC.Beta            = 2.3
+FiniteVolume.THINC.EPS             = 1.0e-4
+FiniteVolume.THINC.UseNormal       = 1
+FiniteVolume.THINC.NormalThreshold = 0.4
+
+PhaseField.phase_field    = 0
+PhaseField.cfl            = 0.3
+PhaseField.Mechanism      = "CAC-Adv"
+PhaseField.ID_ExplicitRC  = 0
+PhaseField.Eta_Multiplier = 0.5
+
+
+# =====================================================================
+# MATERIALS
+# =====================================================================
+prob.EOS.EOS     = 1                       # Stiffened gas, here with pinf = 0
+prob.EOS.gamma_1 = 1.4                     # Material 1 fills the tube
+prob.EOS.gamma_2 = 1.4                     # Material 2 is absent (alpha_1 = 1)
+prob.EOS.pinf_1  = 0.0
+prob.EOS.pinf_2  = 0.0

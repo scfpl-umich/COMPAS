@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+# Copyright (C) 2026 The Regents of the University of Michigan
+# This file is part of COMPAS, free software under the GNU General Public License,
+# version 3 or later, with an additional permission under section 7. It comes with
+# ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
+
+PRECISION  = DOUBLE
+PROFILE    = FALSE
+
+DEBUG      = TRUE
+DEBUG      = FALSE
+
+DIM        = 2
+# DIM        = 3
+
+COMP	   = gnu
+
+USE_MPI    = TRUE
+USE_OMP    = FALSE 
+USE_CUDA   = FALSE
+USE_HIP    = FALSE
+USE_SYCL   = FALSE
+
+Bpack   := ./prob/Make.package 
+Blocs   := . ./prob
+
+
+include ../Make.exec
+
+
+#############################################
+# CODE SPECIFIC DEFINTIONS
+#############################################
+DEFINES += -DPHYSICS=FIVEEQS_NPHASE
+
+# Three materials; `make NPHASE=4` adds the auxiliary material of the reduction-consistency test
+NPHASE ?= 3
+DEFINES += -DNPHASE=$(NPHASE)
+
+DEFINES += -DADVECTION=true
+DEFINES += -DDIFFUSION=false
+DEFINES += -DNONCONSERVATIVE=true
+
+

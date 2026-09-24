@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+// Copyright (C) 2026 The Regents of the University of Michigan
+// This file is part of COMPAS, free software under the GNU General Public License,
+// version 3 or later, with an additional permission under section 7. It comes with
+// ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
+
+#ifndef Operators_Compressible5Eq_H_
+#define Operators_Compressible5Eq_H_
+
+#include<FVM_Reconstruction2Face_Conservative_Godunov_D_Compressible5Eq.H>
+#include<FVM_Reconstruction2Face_Conservative_MUSCL_D_Compressible5Eq.H>
+#include<FVM_Reconstruction2Face_Conservative_WENO3_D_Compressible5Eq.H>
+#include<FVM_Reconstruction2Face_Conservative_WENO3B_D_Compressible5Eq.H>
+#include<FVM_Reconstruction2Face_Conservative_WENO5_D_Compressible5Eq.H>
+#include<FVM_Reconstruction2Face_Conservative_WENO5B_D_Compressible5Eq.H>
+
+#include<FVM_Reconstruction2Face_Conservative_LimiterBound_Compressible5Eq.H>
+#include<FVM_Reconstruction2Face_Conservative_MUSCLBP_D_Compressible5Eq.H>
+#include<FVM_Reconstruction2Face_Conservative_WENO5BP_D_Compressible5Eq.H>
+
+#include<FVM_Reconstruction2FaceLR_Conservative_Godunov_D_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_MUSCL_D_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO3_D_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO3B_D_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO5_D_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO5B_D_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_D_Compressible5Eq.H>
+
+#include<FVM_Reconstruction2FaceLR_Conservative_MUSCLBP_D_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO5BP_D_Compressible5Eq.H>
+
+#include<FVM_Reconstruction2FaceLR_Conservative_Godunov_K_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_MUSCL_K_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO3_K_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO3B_K_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO5_K_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO5_Quad_K_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO5B_K_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_K_Compressible5Eq.H>
+
+#include<FVM_Reconstruction2Face_Conservative_THINC_K_Compressible5Eq.H>
+#include<FVM_Reconstruction2Face_Conservative_THINCOptions_K_Compressible5Eq.H>
+
+#include<FVM_Reconstruction2FaceLR_Conservative_MUSCLBP_K_Compressible5Eq.H>
+#include<FVM_Reconstruction2FaceLR_Conservative_WENO5BP_K_Compressible5Eq.H>
+
+#include<Conservative2CFLSpeed_HLL_Compressible5Eq.H>
+
+#include<FVM_Conservative2FluxHyperbolic_D_Compressible5Eq.H>
+#include<FVM_Conservative2FluxHyperbolic_K_Compressible5Eq.H>
+
+#include<Conservative2Viscosity_Compressible5Eq.H>
+#include<Conservative2Viscosity_Face_D_Compressible5Eq.H>
+#include<Conservative2Viscosity_Face_K_Compressible5Eq.H>
+
+#include<Conservative2Conductivity_Compressible5Eq.H>
+#include<Conservative2Conductivity_Face_D_Compressible5Eq.H>
+#include<Conservative2Conductivity_Face_K_Compressible5Eq.H>
+
+#include<FDM_FluxDiffusion_D_Compressible5Eq.H>
+#include<FDM_Conservative2FluxDiffusion_D_Compressible5Eq.H>
+#include<FDM_Conservative2FluxDiffusion_K_Compressible5Eq.H>
+
+#include<FVM_SurfaceIntegralNC_Compressible5Eq.H>
+
+#endif

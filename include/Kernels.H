@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+// Copyright (C) 2026 The Regents of the University of Michigan
+// This file is part of COMPAS, free software under the GNU General Public License,
+// version 3 or later, with an additional permission under section 7. It comes with
+// ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
+
+#ifndef Kernels_H_
+#define Kernels_H_
+
+#include <ProblemICBC.H>
+#include <Tagging.H>
+#include <bc_fill.H>
+
+#endif

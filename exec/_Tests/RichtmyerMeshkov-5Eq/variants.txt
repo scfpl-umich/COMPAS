@@ -1,0 +1,10 @@
+# Run-time variants of this case, run by scripts/test_cases.sh with the same executable.
+# Each line is a name followed by ParmParse overrides appended to "<exe> prob/inputs".
+# A name starting with "+" continues from the output of the previous line.
+
+# --- Checkpoint and restart ---
+restart-write           max_step=5 amr.chk_int=5
++restart-read           max_step=10 amr.restart=./checkpoints/chk00005
+
+# --- User output hook called every coarse step instead of with each plotfile ---
+user-output-every-step  max_step=5 run.user_output_int=1

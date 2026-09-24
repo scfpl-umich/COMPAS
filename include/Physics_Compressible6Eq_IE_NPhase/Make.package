@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+# Copyright (C) 2026 The Regents of the University of Michigan
+# This file is part of COMPAS, free software under the GNU General Public License,
+# version 3 or later, with an additional permission under section 7. It comes with
+# ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
+
+CEXE_headers += Variables_Compressible6Eq_IE_NPhase.H
+CEXE_headers += Physics_Parameter_Compressible6Eq_IE_NPhase.H
+
+CEXE_headers += Vector2Component_Compressible6Eq_IE_NPhase.H
+CEXE_headers += Component2Vector_Compressible6Eq_IE_NPhase.H
+CEXE_headers += VectorPhase2Vector_Compressible6Eq_IE_NPhase.H
+CEXE_headers += Primitive2State_Compressible6Eq_IE_NPhase.H
+CEXE_headers += State2Primitive_Compressible6Eq_IE_NPhase.H
+CEXE_headers += Conservative2State_Compressible6Eq_IE_NPhase.H
+CEXE_headers += State2Conservative_Compressible6Eq_IE_NPhase.H
+CEXE_headers += EquationOfState_Phase_Compressible6Eq_IE_NPhase.H
+CEXE_headers += Conservative2Primitive_Compressible6Eq_IE_NPhase.H
+CEXE_headers += Primitive2Conservative_Compressible6Eq_IE_NPhase.H
+CEXE_headers += Conservative2ConservativePhase_Compressible6Eq_IE_NPhase.H
+CEXE_headers += ConservativePhase2Conservative_Compressible6Eq_IE_NPhase.H
+CEXE_headers += Conservative2Flux_Compressible6Eq_IE_NPhase.H
+CEXE_headers += rho_c2_Phase_Compressible6Eq_IE_NPhase.H
+CEXE_headers += rho_c2_Mixture_Compressible6Eq_IE_NPhase.H
+CEXE_headers += SoundSpeed_Compressible6Eq_IE_NPhase.H
+CEXE_headers += Riemann_LLF_Compressible6Eq_IE_NPhase.H
+CEXE_headers += Riemann_HLL_Compressible6Eq_IE_NPhase.H
+CEXE_headers += Riemann_HLLC_Compressible6Eq_IE_NPhase.H
+CEXE_headers += RiemannSolver_Compressible6Eq_IE_NPhase.H
+
+CEXE_headers += Conservative2Velocity_Compressible6Eq_IE_NPhase.H
+CEXE_headers += Conservative2Temperature_Compressible6Eq_IE_NPhase.H
+CEXE_headers += Conservative2Pressure_Compressible6Eq_IE_NPhase.H
+CEXE_headers += Conservative2EnergyBound_Compressible6Eq_IE_NPhase.H
+
+CEXE_headers += ComputeDerivedVar_Compressible6Eq_IE_NPhase.H
+
+CEXE_headers += EnergyCorrection_Compressible6Eq_IE_NPhase.H
+
+CEXE_headers += RelaxationPressure_Instantaneous_Compressible6Eq_IE_NPhase.H
+
+CEXE_headers += RefluxSourceTerms_Compressible6Eq_IE_NPhase.H

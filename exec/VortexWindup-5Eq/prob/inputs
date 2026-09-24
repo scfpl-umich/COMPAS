@@ -1,0 +1,133 @@
+# =====================================================================
+# WIND-UP OF A PLANAR INTERFACE BY A STEADY ISENTROPIC VORTEX
+# A steady isentropic vortex at rest (Shu 1998, strength beta = 5, core
+# radius rc = 1) turns a straight interface through its center into a
+# double spiral. Both materials are the same ideal gas at the same
+# density, so the interface is passive and the exact volume fraction at
+# time t is the initial one turned by -Omega(r) t at each radius. The
+# arms thin as they wind up, which tests the transport of a sharp
+# interface through a sheared flow; analysis/windup.py measures the L1
+# error and the pieces the arms break into. Slip walls far from the
+# vortex. Nondimensional units, rho0 = p0 = rc = 1.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 10000000         # Maximum number of time steps to advance
+stop_time = 30.0             # The center turns 6.3 times (Omega(0) = 1.31); the arms near r = rc are 3 cells wide
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# The velocity falls off as exp(-r^2/2): at the walls it is below 1e-4
+# =====================================================================
+geometry.prob_lo     = -5.0 -5.0 -1.0   # Lower bounds (x,y,z)
+geometry.prob_hi     =  5.0  5.0  1.0   # Upper bounds (x,y,z)
+geometry.is_periodic =  0    0    0
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 4 4 4            # Slip walls on every side
+run.hi_bc = 4 4 4
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 0              # AMR verbosity level
+run.sum_var = 0              # Index of the conserved variable summed each step (a1rho1)
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# 256 x 256 uniform cells, 25.6 cells per core radius. The criterion
+# below refines the interface when amr.max_level > 0.
+# =====================================================================
+amr.n_cell      = 256 256 8  # Base grid resolution (coarsest level)
+amr.max_level   = 0          # No refinement
+amr.ref_ratio   = 2 2 2 2    # Refinement ratio between levels
+amr.n_error_buf = 2          # Buffer around tagged cells for refinement
+
+amr.blocking_factor_x = 16
+amr.blocking_factor_y = 16
+amr.blocking_factor_z = 16
+amr.max_grid_size     = 64   # Maximum grid patch size
+amr.regrid_int        = 2    # Regrid interval (in steps)
+amr.Interpolater      = "lincc_interp"
+
+run.refine.ref_vars       = a1
+run.refine.a1.max_level   = 10
+run.refine.a1.value_range = 0.01 0.99  0.01 0.99  0.01 0.99  0.01 0.99
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.4         # CFL number for stability
+run.do_subcycle             = 1           # Subcycle child levels in time
+run.check_cfl               = 0           # Enable/disable CFL safety checks
+run.timestep_change_limiter = 0           # Limit timestep growth/shrink
+run.TimeIntegrator          = "TVD-RK3"   # Time integration scheme
+run.do_reflux               = 1           # Enable refluxing
+run.QuadratureIC            = 0           # The initial condition computes its own cell averages
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/VortexWindup  # Output file prefix
+amr.plot_int         = 1000000              # Plotfiles are written at the interval below instead
+amr.t_write_interval = 2.5                  # A plotfile every 2.5 time units
+run.output_vars      = a1 rho u v P         # Variables in the plotfiles
+amr.chk_file         = ./checkpoints/chk    # Prefix for checkpoint files
+amr.chk_int          = -1                   # No checkpoints
+run.user_output_int  = 10                   # Volume, bounds, mixed area and L1 error every 10 coarse steps
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.source_term   = 0            # No K div(u) term: both materials are the same gas
+Physics.RiemannSolver = "HLLC"       # Riemann solver type
+
+FiniteVolume.Scheme = "MUSCL-MC"     # FV reconstruction scheme
+FiniteVolume.THINC  = 1              # THINC reconstruction of the volume fraction at the interface
+FiniteVolume.THINC.Beta            = 2.3
+FiniteVolume.THINC.EPS             = 1.0e-4
+FiniteVolume.THINC.UseNormal       = 1
+FiniteVolume.THINC.NormalThreshold = 0.4
+FiniteVolume.THINC.Multi           = 1   # Multi-dimensional THINC face averages
+FiniteVolume.THINC.FaceState       = 1   # Only the THINC side of a face is rebuilt; u and p keep the base scheme
+FiniteVolume.THINC.PhaseDensity    = 1   # Phase densities of the cell (use together with FaceState = 1)
+                                         # Multi = FaceState = PhaseDensity = 0 is the earlier THINC,
+                                         # which breaks the thinnest arms into beads by t = 30
+
+PhaseField.phase_field    = 0        # No Phase-Field regularization
+PhaseField.Eta_Multiplier = 0.5      # Not used
+
+
+# =====================================================================
+# MATERIALS AND PROBLEM
+# =====================================================================
+# The same ideal gas on both sides of the interface
+prob.EOS.EOS     = 0
+prob.EOS.gamma_1 = 1.4
+prob.EOS.gamma_2 = 1.4
+prob.EOS.pinf_1  = 0.0
+prob.EOS.pinf_2  = 0.0
+
+prob.beta   = 5.0            # Vortex strength; the largest speed is beta/(2 pi) = 0.80 at r = rc
+prob.rc     = 1.0            # Core radius
+prob.xc     = 0.0            # Center of the vortex
+prob.yc     = 0.0
+prob.rho0   = 1.0            # Density and pressure far from the vortex
+prob.p0     = 1.0
+prob.angle  = 0.0            # Normal of the interface, in degrees from x: material 2 on x > 0
+prob.offset = 0.0            # Distance of the interface from the center, along the normal
+prob.width  = 0.0            # 0 for a half plane of material 2; > 0 for a slab of this width
+prob.nsub   = 4              # Samples per direction of the exact alpha_2 in the in-situ L1 error

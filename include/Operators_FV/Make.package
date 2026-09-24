@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+# Copyright (C) 2026 The Regents of the University of Michigan
+# This file is part of COMPAS, free software under the GNU General Public License,
+# version 3 or later, with an additional permission under section 7. It comes with
+# ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
+
+CEXE_headers += FiniteVolume_Parameter.H
+
+CEXE_HEADERS += Quadrature.H
+
+CEXE_headers += f_Downwind.H
+CEXE_headers += f_Upwind.H
+CEXE_headers += f_LimiterBound.H
+CEXE_headers += fC_QuadratureRule.H
+
+CEXE_headers += Limiter_Minmod.H
+CEXE_headers += Limiter_vanLeer.H
+CEXE_headers += Limiter_Superbee.H
+CEXE_headers += Limiter_MC.H
+CEXE_headers += Slope_TVD.H
+
+CEXE_headers += Limiter_BoundMax.H
+CEXE_headers += Limiter_BoundMin.H
+CEXE_headers += Limiter_BoundMaxMin.H
+CEXE_headers += Limiter_Bound.H
+CEXE_headers += Limiter_Consistent.H
+
+CEXE_headers += WENO3.H
+CEXE_headers += WENO5.H
+
+CEXE_headers += Reconstruction2Face_Godunov.H
+CEXE_headers += Reconstruction2Face_Linear.H
+CEXE_headers += Reconstruction2Face_WENO.H
+
+CEXE_headers += Reconstruction_Godunov.H
+CEXE_headers += Reconstruction_Linear.H
+CEXE_headers += Reconstruction_CenterFace2.H
+CEXE_headers += Reconstruction_CenterFace4.H
+
+CEXE_headers += Reconstruction2Face_Godunov_D.H
+CEXE_headers += Reconstruction2Face_MUSCL_D.H
+CEXE_headers += Reconstruction2Face_WENO3_D.H
+CEXE_headers += Reconstruction2Face_WENO5_D.H
+CEXE_headers += Reconstruction2Face_WENO3B_D.H
+CEXE_headers += Reconstruction2Face_WENO5B_D.H
+CEXE_headers += Reconstruction2Face_THINC_D.H
+CEXE_headers += Reconstruction2Face_MTHINC_D.H
+
+CEXE_headers += Reconstruction2Face_Godunov_K.H
+CEXE_headers += Reconstruction2Face_MUSCL_K.H
+CEXE_headers += Reconstruction2Face_WENO3_K.H
+CEXE_headers += Reconstruction2Face_WENO5_K.H
+CEXE_headers += Reconstruction2Face_WENO3B_K.H
+CEXE_headers += Reconstruction2Face_WENO5B_K.H
+
+CEXE_headers += Reconstruction_Godunov_D.H
+CEXE_headers += Reconstruction_MUSCL_D.H
+CEXE_headers += Reconstruction_WENO3_D.H
+CEXE_headers += Reconstruction_WENO5_D.H
+CEXE_headers += Reconstruction_WENO3B_D.H
+CEXE_headers += Reconstruction_WENO5B_D.H
+
+CEXE_headers += Reconstruction_Godunov_K.H
+CEXE_headers += Reconstruction_MUSCL_K.H
+CEXE_headers += Reconstruction_WENO3_K.H
+CEXE_headers += Reconstruction_WENO5_K.H
+CEXE_headers += Reconstruction_WENO3B_K.H
+CEXE_headers += Reconstruction_WENO5B_K.H
+
+CEXE_headers += Reconstruction2Face_D.H
+CEXE_headers += Reconstruction2Face_K.H
+CEXE_headers += Reconstruction_D.H
+CEXE_headers += Reconstruction_K.H
+
+CEXE_headers += FVM_Divergence_D.H
+CEXE_headers += FVM_Divergence_K.H
+
+CEXE_headers += GetDifferentialMeasures.H
+CEXE_headers += FVM_SurfaceIntegral.H

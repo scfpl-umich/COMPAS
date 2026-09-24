@@ -1,0 +1,60 @@
+# COMPAS .gitignore
+
+# ---- Simulation output, written inside case directories ----
+exec/**/plot*/
+exec/**/checkpoints*/
+exec/**/plt*/
+exec/**/chk*/
+exec/**/Level_*/
+exec/**/bl_prof*/
+exec/**/Backtrace.*
+exec/**/*.visit
+exec/**/conv_temp*
+exec/**/convergence_*.csv
+exec/**/*.png
+exec/**/*.dat
+exec/**/*.log
+exec/**/err.*
+exec/**/out.*
+exec/**/slurm-*.out
+
+# ---- Build products ----
+tmp_build_dir/
+*.o
+*.a
+*.so
+*.dylib
+*.ex
+*.exe
+*.dSYM/
+
+# ---- Test harness output ----
+scripts/logs/
+scripts/test_summary.csv
+
+# ---- Python ----
+__pycache__/
+*.pyc
+.venv/
+venv/
+scripts/compas_python_env/
+.ipynb_checkpoints/
+
+# ---- Archives and bulk data ----
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.h5
+*.hdf5
+
+# ---- Editors, tools and OS ----
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# Documentation build output
+docs/_build/
+docs/media/

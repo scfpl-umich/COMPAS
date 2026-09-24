@@ -1,0 +1,131 @@
+# =====================================================================
+# SHOCK-HELIUM BUBBLE INTERACTION
+# A Mach 1.25 shock in air (material 1) hits a cylindrical helium bubble
+# (material 2) of radius 0.25, a variant of the shock-tube experiment of
+# Haas and Sturtevant (JFM 181, 1987) often used to test interface-capturing
+# schemes (Quirk and Karni, JFM 318, 1996). Only the upper half of the bubble
+# is simulated, with a slip wall on the axis. Exercises the five-equation
+# model with AMR on the interface and the shocks. Nondimensional units, with
+# pre-shock pressure 1.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 100000          # Maximum number of time steps to advance
+stop_time = 0.50            # Maximum physical time to integrate to
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# The bubble is centered at the origin, on the lower boundary
+# =====================================================================
+geometry.prob_lo     = -0.5  0.0  0.0   # Lower bounds (x,y,z)
+geometry.prob_hi     =  2.5  0.5  0.5   # Upper bounds (x,y,z)
+geometry.is_periodic =  0    0    0
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 2 4 4            # Outflow at the ends of the tube, slip walls on the axis
+run.hi_bc = 2 4 4            # and on the tube wall
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1
+run.sum_var = 4              # Index of the conservative variable to sum (rho_E in 2D)
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# 96 x 16 square cells on the base grid and six levels of refinement
+# =====================================================================
+amr.n_cell      = 96 16 16   # Base grid resolution (coarsest level)
+amr.max_level   = 6          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2 2 2
+amr.n_error_buf = 1          # Buffer around tagged cells for refinement
+
+amr.blocking_factor_x = 8
+amr.blocking_factor_y = 8
+amr.blocking_factor_z = 8
+amr.max_grid_size     = 8
+amr.regrid_int        = 1
+amr.Interpolater      = "lincc_interp"
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.3
+run.do_subcycle             = 1
+run.check_cfl               = 0
+run.timestep_change_limiter = 0
+run.TimeIntegrator          = "TVD-RK3"
+run.do_reflux               = 1
+
+
+# =====================================================================
+# REFINEMENT CRITERIA: the interface, where 0.01 < alpha_1 < 0.99, and
+# the gradient of the mixture density, which follows the shocks
+# =====================================================================
+run.refine.ref_vars       = a1 rho
+
+run.refine.a1.max_level   = 10
+run.refine.a1.value_range = 0.01 0.99  0.01 0.99  0.01 0.99  0.01 0.99  0.01 0.99  0.01 0.99
+
+run.refine.rho.max_level  = 10
+run.refine.rho.grad       = 0.1 0.1 0.1 0.1 0.1 0.1 0.1
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/ShockBubble-AirHelium-5Eq
+amr.plot_int         = 1000000
+amr.t_write_interval = 0.05                # A plotfile every 0.05 time units
+run.output_vars      = a1rho1 rho u v P a1
+amr.chk_file         = ./checkpoints/chk
+amr.chk_int          = 20000
+run.user_output_int  = 1                   # Bubble volume, centroid, velocity and axial interfaces every coarse step
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.source_term   = 1                  # Five-equation model with the K div(u) term
+Physics.RiemannSolver = "HLLC"
+
+FiniteVolume.Scheme = "MUSCL"
+FiniteVolume.THINC  = 0                    # 1 for THINC reconstruction of the interface
+FiniteVolume.THINC.Beta         = 2.3
+FiniteVolume.THINC.EPS          = 1.0e-4
+FiniteVolume.THINC.UseNormal    = 1
+FiniteVolume.THINC.Multi        = 1        # Multi-dimensional THINC face averages
+FiniteVolume.THINC.FaceState    = 1        # Only the THINC side of a face is rebuilt; u and p keep the base scheme
+FiniteVolume.THINC.PhaseDensity = 1        # Phase densities of the cell (use together with FaceState = 1)
+
+PhaseField.phase_field    = 0              # 1 for Phase-Field regularization of the interface
+PhaseField.cfl            = 0.3            # This and the next two apply when phase_field = 1
+PhaseField.Mechanism      = "ACDI"
+PhaseField.ID_ExplicitRC  = 1
+PhaseField.Eta_Multiplier = 0.25           # Initial interface width, eta = 0.25 finest cells
+
+
+# =====================================================================
+# MATERIALS AND PROBLEM
+# =====================================================================
+prob.EOS.EOS     = 0
+prob.EOS.gamma_1 = 1.4                     # air
+prob.EOS.gamma_2 = 1.6667                  # helium
+prob.EOS.pinf_1  = 0.0
+prob.EOS.pinf_2  = 0.0
+
+prob.rho1 = 1.2                            # air density ahead of the shock
+prob.rho2 = 0.2                            # helium density
+prob.Mach = 1.25                           # shock Mach number in air
+prob.r    = 0.25                           # bubble radius

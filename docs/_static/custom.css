@@ -1,0 +1,104 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+ * Copyright (C) 2026 The Regents of the University of Michigan
+ * This file is part of COMPAS, free software under the GNU General Public License,
+ * version 3 or later, with an additional permission under section 7. It comes with
+ * ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details. */
+
+/* Roomier Furo. Only spacing, sizes and widths change; all colors stay Furo's,
+   so light and dark mode are untouched. */
+
+:root {
+  --font-size--normal: 100%;
+  --code-font-size: 0.84em;
+}
+
+/* Wider main column on wide screens (Furo's default is 46em). The left sidebar
+   shrinks by half the added width so the page stays centred. */
+@media (min-width: 82em) {
+  .content { width: 52em; padding-left: 3.5em; padding-right: 3.5em; }
+  .sidebar-drawer { width: calc(50% - 29em); }
+}
+
+/* Body text: more line height and more space between blocks. */
+article { line-height: 1.72; }
+article p { margin-top: 0; margin-bottom: 1.15em; }
+article ul, article ol { margin-top: 0.4em; margin-bottom: 1.4em; padding-left: 1.6em; }
+article li { margin-bottom: 0.45em; }
+article li > p { margin-bottom: 0.45em; }
+article dl dd { margin-bottom: 1em; }
+
+/* Headings: calmer sizes and clear separation from the text around them. */
+article h1 { font-size: 2.2em; line-height: 1.2; margin-top: 0.4em; margin-bottom: 1.6rem; }
+article h2 { font-size: 1.65em; line-height: 1.25; margin-top: 3.6rem; margin-bottom: 1.25rem; }
+article h3 { font-size: 1.3em; line-height: 1.3; margin-top: 2.6rem; margin-bottom: 0.9rem; }
+article h4 { font-size: 1.1em; margin-top: 2rem; margin-bottom: 0.7rem; }
+article section > h2 { padding-top: 1.6rem; border-top: 1px solid var(--color-background-border); }
+article section:first-of-type > h2:first-child { border-top: none; padding-top: 0; }
+
+/* Code: more padding inside blocks and more space around them. */
+article div[class^="highlight-"], article div[class*=" highlight-"] { margin: 1.5em 0 1.75em; }
+article .highlight pre, article pre.literal-block { padding: 1em 1.25em; line-height: 1.6; border-radius: 0.3rem; }
+article .highlight { border-radius: 0.3rem; }
+article code.literal { padding: 0.1em 0.3em; }
+
+/* Tables: cells with real padding and space above and below. */
+article .table-wrapper, article table.docutils { margin-top: 1.5em; margin-bottom: 2em; }
+article table.docutils td, article table.docutils th { padding: 0.55em 0.9em; line-height: 1.5; }
+article table.docutils td p, article table.docutils th p { margin: 0; }
+
+/* Figures and videos: breathing room, and an italic caption like the ones under the images. */
+article figure, article .figure, article video { margin-top: 2.25rem; margin-bottom: 2.5rem; }
+figure figcaption { margin-top: 0.8rem; font-style: italic; }
+figure figcaption p { margin-bottom: 0.4em; }
+
+/* Admonitions: a little more inner space. */
+article .admonition { padding-bottom: 0.6rem; margin: 1.75rem 0; }
+
+/* Math blocks. */
+article div.math { margin: 1.4em 0; }
+
+/* Narrow screens: comfortable side gutters and smaller top headings. */
+@media (max-width: 67em) {
+  .content { padding-left: 2em; padding-right: 2em; }
+}
+@media (max-width: 46em) {
+  .content { padding-left: 1.25em; padding-right: 1.25em; }
+  article h1 { font-size: 1.9em; }
+  article h2 { font-size: 1.45em; margin-top: 2.8rem; }
+  article h3 { font-size: 1.2em; }
+}
+
+/* Landing-page logo: the ASCII art from include/Tools/Banner.H. No box, the theme's text
+   color so it reads in light and dark mode, and a size that fits the column on any screen.
+   The page's H1 right after it stays for Sphinx, search and screen readers but is hidden. */
+article pre.compas-logo {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  margin: 0.5em auto 1.75em;
+  padding: 0;
+  width: max-content;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-foreground-primary);
+  font-family: var(--font-stack--monospace);
+  font-size: clamp(0.5rem, 2.4vw, 1.15rem);
+  line-height: 1;
+  white-space: pre;
+}
+article pre.compas-logo + section > h1:first-child {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (max-width: 46em) {
+  article pre.compas-logo { font-size: 2.3vw; }
+}
+
+/* Center figures, images and videos in the column. Captions stay left-aligned for reading. */
+article img, article video { display: block; margin-left: auto; margin-right: auto; }
+article figure { margin-left: auto; margin-right: auto; }

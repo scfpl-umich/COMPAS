@@ -1,0 +1,56 @@
+# Cases run by scripts/test_cases.sh, in this order. Any case directory in exec/_Tests
+# that is not listed here also runs, after these, with a warning. Run-time variants of a
+# case (schemes, Riemann solvers, Phase-Field mechanisms, ...) are in <case>/variants.txt.
+
+# --- One advection test per model, each with the method variants for that model ---
+Advection-5Eq
+Advection-5Eq-N
+Advection-6Eq
+Advection-6Eq-N
+
+# --- Viscous and conductive fluxes for the N-phase five-equation model ---
+# (the 5Eq cases below cover the two-phase model; the six-equation models have no diffusion yet)
+Advection-Viscous-5Eq-N
+
+# --- Advection-5Eq with THINC and with Phase-Field, to try each out of the box ---
+Advection-THINC-5Eq
+Advection-PF-5Eq
+
+# --- STL reader test ---
+COMPAS-STL-5Eq
+
+# --- User output test, plus checkpoint and restart ---
+RichtmyerMeshkov-5Eq
+
+# --- User source term test ---
+RayleighTaylor-5Eq
+
+# --- 3D test ---
+RayleighTaylor-3D-5Eq
+
+# --- User boundary conditions test ---
+Jet-Inflow-5Eq
+
+# --- User spatio-temporal refinement tagging, 3D six-equation, no subcycling ---
+NonsphericalCollapse-6Eq
+
+# --- Runtime allocation of static GPU arrays ---
+RichtmyerMeshkov-Multimode-5Eq
+
+# --- High-order WENO5 via quadrature ---
+ShockVortex-5Eq
+
+# --- High-order WENO5 with viscosity and no-slip wall ---
+ViscousShockTube-5Eq
+
+# --- Convergence case with python tool ---
+IsentropicVortex-5Eq
+
+# --- 3D Sod shock tube with AMR and outflow boundaries, one per model; variants run it along y and z ---
+Sod-5Eq
+Sod-5Eq-N
+Sod-6Eq
+Sod-6Eq-N
+
+# --- Shu-Osher shock tube with AMR, one model; variants compare the reconstruction schemes ---
+ShuOsher-5Eq

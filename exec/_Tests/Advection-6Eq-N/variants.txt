@@ -1,0 +1,32 @@
+# Run-time variants of this case, run by scripts/test_cases.sh with the same executable.
+# Each line is a name followed by ParmParse overrides appended to "<exe> prob/inputs".
+# The base inputs use the five-phase six-equation model with MUSCL-MC, HLLC, pressure relaxation,
+# stiffened gas and ACDI Phase-Field with the explicit treatment.
+
+# --- Reconstruction schemes, THINC and the bound-preserving limiter ---
+scheme-godunov          max_step=10 FiniteVolume.Scheme=GODUNOV
+scheme-muscl-minmod     max_step=10 FiniteVolume.Scheme=MUSCL
+scheme-muscl-vanleer    max_step=10 FiniteVolume.Scheme=MUSCL-vanLeer
+scheme-muscl-superbee   max_step=10 FiniteVolume.Scheme=MUSCL-Superbee
+scheme-weno3            max_step=10 FiniteVolume.Scheme=WENO3
+scheme-weno3b           max_step=10 FiniteVolume.Scheme=WENO3B
+scheme-weno5            max_step=10 FiniteVolume.Scheme=WENO5
+scheme-weno5b           max_step=5  FiniteVolume.Scheme=WENO5B
+thinc                   max_step=10 FiniteVolume.THINC=1
+bound-muscl             max_step=10 FiniteVolume.ID_Bound=1
+
+# --- Riemann solvers ---
+riemann-llf             max_step=10 Physics.RiemannSolver=LLF
+riemann-hll             max_step=10 Physics.RiemannSolver=HLL
+
+# --- Physics options ---
+no-relaxation           max_step=10 Physics.pressure_relaxation=0
+eos-ideal-gas           max_step=10 prob.EOS.EOS=0
+eos-mie-gruneisen       max_step=10 prob.EOS.EOS=2 prob.EOS.gGamma=0.4 0.6 0.8 0.4 0.4 prob.EOS.pref=0 0 0 0 0 prob.EOS.eref=0 0 0 0 0
+
+# --- Phase-Field, one mechanism of each family, both treatments ---
+pf-off                  max_step=10 PhaseField.phase_field=0
+pf-cac-adv              max_step=2  PhaseField.Mechanism=CAC-Adv PhaseField.ID_ExplicitRC=0
+pf-cdi-implicit         max_step=5  PhaseField.Mechanism=CDI PhaseField.ID_ExplicitRC=0
+pf-cdi-explicit         max_step=10 PhaseField.Mechanism=CDI PhaseField.ID_ExplicitRC=1
+pf-ch-adv               max_step=3  PhaseField.Mechanism=CH-Adv PhaseField.ID_ExplicitRC=0

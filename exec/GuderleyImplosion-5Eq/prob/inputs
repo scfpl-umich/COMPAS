@@ -1,0 +1,130 @@
+# =====================================================================
+# GUDERLEY IMPLOSION ONTO A PERTURBED INTERFACE
+# A strong cylindrical shock in air, with Guderley's similarity solution
+# behind it, converges on a heavy gas (SF6-like) whose interface is
+# R(theta) = R0 + a0 cos(mode theta), as a model of the Richtmyer-Meshkov
+# and Bell-Plesset growth of a perturbation in a converging geometry. The
+# case exercises THINC at a two-gas interface, strong shocks, and a user
+# boundary condition that imposes the exact inflow (Guderley 1942; see
+# prob/Guderley.H). One quarter of the plane is simulated, with symmetry on
+# the x and y axes. Nondimensional units.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 100000          # Maximum number of time steps to advance
+stop_time = 1.0             # Maximum nondimensional time
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# Quarter plane; the implosion center is the origin
+# =====================================================================
+geometry.prob_lo     =  0.0  0.0  0.0   # Lower bounds (x,y,z)
+geometry.prob_hi     =  1.0  1.0  1.0   # Upper bounds (x,y,z)
+geometry.is_periodic =  0    0    0     # Periodicity flags in each direction
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 3 3 4            # Symmetry on the x and y axes
+run.hi_bc = 1 1 4            # Inflow on the outer edges, from the similarity solution
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1              # AMR verbosity level
+run.sum_var = 0              # Index of the variable summed for the NaN check
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# 96 x 96 square cells and two levels, 384 x 384 at the finest level
+# =====================================================================
+amr.n_cell      = 96 96 8    # Base grid resolution (coarsest level)
+amr.max_level   = 2          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2    # Refinement ratio between levels
+amr.n_error_buf = 2          # Buffer around tagged cells for refinement
+
+amr.blocking_factor_x = 8    # Minimum grid block size in x
+amr.blocking_factor_y = 8    # Minimum grid block size in y
+amr.blocking_factor_z = 8    # Minimum grid block size in z
+amr.max_grid_size     = 32   # Maximum grid patch size
+amr.regrid_int        = 2    # Regrid every N steps
+amr.Interpolater      = "lincc_interp" # Coarse-fine BC interpolater
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.3         # CFL number for stability
+run.do_subcycle             = 1           # Subcycle child levels in time
+run.check_cfl               = 0           # Enable/disable CFL safety checks
+run.timestep_change_limiter = 0           # Limit timestep growth/shrink
+run.TimeIntegrator          = "TVD-RK3"   # Time integration scheme
+run.do_reflux               = 1           # Enable refluxing
+
+
+# =====================================================================
+# REFINEMENT CRITERIA
+# Refine on the interface (0.01 < a1 < 0.99) and on the shocks (pressure jumps)
+# =====================================================================
+run.refine.ref_vars        = a1 P
+run.refine.a1.max_level    = 10
+run.refine.a1.value_range  = 0.01 0.99  0.01 0.99  0.01 0.99  0.01 0.99
+run.refine.P.max_level     = 10
+run.refine.P.grad          = 0.25 0.25 0.25 0.25
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/Guderley   # Output file prefix
+amr.plot_int         = 1000000           # Plotfiles are written by time instead
+amr.t_write_interval = 0.02              # Write a plotfile every 0.02 time units
+run.output_vars      = a1rho1 a2rho2 rho u v P a1   # Variables in the plotfiles
+amr.chk_file         = ./checkpoints/chk # Prefix for checkpoint files
+amr.chk_int          = 500               # Steps between checkpoints
+run.user_output_int  = 1                 # Interface radius, mode amplitude, thickness and shock radius every coarse step
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.source_term   = 1            # Five-equation model with the K div(u) term
+Physics.RiemannSolver = "HLLC"       # Riemann solver type
+
+FiniteVolume.Scheme = "MUSCL-MC"     # FV reconstruction scheme
+FiniteVolume.THINC  = 1              # THINC reconstruction of the interface
+FiniteVolume.THINC.Beta            = 2.3     # Interface steepness
+FiniteVolume.THINC.EPS             = 1.0e-4  # Cells with alpha within EPS of 0 or 1 use MUSCL
+FiniteVolume.THINC.UseNormal       = 1       # Multidimensional THINC along the interface normal
+FiniteVolume.THINC.NormalThreshold = 0.4
+
+PhaseField.phase_field    = 0        # Phase-Field off (THINC keeps the interface sharp)
+PhaseField.Eta_Multiplier = 0.5      # Initial interface width Eta = f*Dx (finest level)
+
+
+# =====================================================================
+# PROBLEM-SPECIFIC PARAMETERS
+# =====================================================================
+# Ideal gases: air outside (phase 1), SF6 inside (phase 2)
+prob.EOS.EOS     = 0
+prob.EOS.gamma_1 = 1.4
+prob.EOS.gamma_2 = 1.094
+prob.EOS.pinf_1  = 0.0
+prob.EOS.pinf_2  = 0.0
+
+prob.rho1 = 1.0              # Air density
+prob.rho2 = 5.04             # SF6 density (same pressure and temperature)
+prob.P0   = 0.01             # Pressure ahead of the shock
+prob.Mach = 20.0             # Initial shock Mach number in air (strong, as the similarity solution assumes)
+prob.Rs   = 0.8              # Initial shock radius
+prob.R0   = 0.5              # Mean interface radius
+prob.a0   = 0.02             # Perturbation amplitude
+prob.mode = 8                # Perturbation mode number (even, for the quarter plane)

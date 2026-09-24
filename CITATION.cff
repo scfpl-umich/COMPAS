@@ -1,0 +1,56 @@
+cff-version: 1.2.0
+message: >-
+  If you use COMPAS, please cite it as below, and cite the papers for the
+  methods you used, which are listed in README.md.
+title: "COMPAS: COmpressible Multiphase multiPhysics Adaptive Solver"
+type: software
+authors:
+  - family-names: White
+    given-names: William J.
+    affiliation: University of Michigan
+  - family-names: Huang
+    given-names: Ziyang
+    affiliation: University of Michigan and The University of Alabama
+  - family-names: Fonkwa
+    given-names: Baudouin
+    affiliation: University of Michigan
+  - family-names: Johnsen
+    given-names: Eric
+    affiliation: University of Michigan
+repository-code: "https://github.com/scfpl-umich/COMPAS"
+license: GPL-3.0-or-later
+keywords:
+  - compressible multiphase flow
+  - phase-field
+  - adaptive mesh refinement
+  - AMReX
+  - GPU
+preferred-citation:
+  type: article
+  status: in-preparation
+  title: >-
+    COMPAS: A GPU-accelerated, adaptive-mesh finite volume framework for
+    consistent and conservative Phase-Field modeling of compressible,
+    N-material, interfacial flows
+  authors:
+    - family-names: White
+      given-names: William J.
+    - family-names: Huang
+      given-names: Ziyang
+    - family-names: Johnsen
+      given-names: Eric
+  journal: Computer Physics Communications
+references:
+  - type: thesis
+    thesis-type: PhD dissertation
+    title: >-
+      Discontinuous Galerkin Methods and Phase-Field Models for Numerical
+      Simulations of Compressible Interfacial Flows with Shocks and Vorticity
+    authors:
+      - family-names: White
+        given-names: William J.
+    institution:
+      name: University of Michigan
+    year: 2025
+    doi: 10.7302/28171
+    url: "https://hdl.handle.net/2027.42/201087"

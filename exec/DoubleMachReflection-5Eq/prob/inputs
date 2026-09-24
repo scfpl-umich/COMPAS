@@ -1,0 +1,126 @@
+# =====================================================================
+# DOUBLE MACH REFLECTION
+# A Mach 10 shock in air runs up a 30 degree wedge (Woodward and Colella,
+# J. Comput. Phys. 54, 1984). The frame is aligned with the wedge, whose
+# surface is the bottom boundary from x0 = 1/6, and the shock starts at 60
+# degrees to it through (x0, 0). The reflection forms a Mach stem, two
+# triple points, a jet along the wall, and a weak secondary slip line. The
+# boundary conditions follow Kemm (Comput. Fluids 132, 2016) and are set in
+# prob/ProblemICBC.H. Single fluid with gamma = 1.4 in the five-equation
+# model, with AMR on the density gradient. Nondimensional units, with the
+# gas ahead of the shock at rho = 1.4 and P = 1, so its sound speed is 1.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 100000          # Maximum number of time steps to advance
+stop_time = 0.2             # Time of the Woodward and Colella figures
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# =====================================================================
+geometry.prob_lo     =  0.0  0.0      # Lower bounds (x,y)
+geometry.prob_hi     =  4.0  1.0      # Upper bounds (x,y)
+geometry.is_periodic =  0    0
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 1 1              # User function: the state behind the shock at x = 0; at y = 0,
+                             # the same state ahead of the wedge and a slip wall on it
+run.hi_bc = 2 1              # Outflow at x = 4; user function at y = 1, the exact moving shock
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1
+run.sum_var = 4              # Component summed each step, rho_E in 2D
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# 240 x 60 square cells (dx = 1/60) and three levels, dx = 1/480 at the
+# finest level. amr.max_level = 2 gives dx = 1/240.
+# =====================================================================
+amr.n_cell      = 240 60     # Base grid resolution (coarsest level)
+amr.max_level   = 3          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2
+amr.n_error_buf = 2          # Buffer around tagged cells for refinement
+
+amr.blocking_factor_x = 4    # 60 cells in y are not a multiple of 8
+amr.blocking_factor_y = 4
+amr.max_grid_size     = 32
+amr.regrid_int        = 2
+amr.Interpolater      = "lincc_interp"
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.4
+run.do_subcycle             = 1
+run.check_cfl               = 0
+run.timestep_change_limiter = 0
+run.TimeIntegrator          = "TVD-RK3"
+run.do_reflux               = 1
+
+
+# =====================================================================
+# REFINEMENT CRITERIA: jumps in density between neighboring cells, which
+# follow the shocks, the slip lines and the jet. The jump across the
+# incident shock is 6.6, and across the secondary slip line well under 1.
+# =====================================================================
+run.refine.ref_vars      = rho
+run.refine.rho.max_level = 10
+run.refine.rho.grad      = 0.3 0.3 0.3 0.3 0.3 0.3
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/DoubleMach
+amr.plot_int         = 1000000
+amr.t_write_interval = 0.1                 # A plotfile every 0.1
+run.output_vars      = rho u v P
+amr.chk_file         = ./checkpoints/chk
+amr.chk_int          = -1                  # No checkpoints
+run.user_output_int  = 1                   # Foot of the Mach stem every coarse step
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.source_term   = 1                  # Five-equation model with the K div(u) term
+Physics.RiemannSolver = "HLLC"
+
+FiniteVolume.Scheme = "MUSCL-MC"
+FiniteVolume.THINC  = 0
+FiniteVolume.THINC.Beta            = 2.3
+FiniteVolume.THINC.EPS             = 1.0e-4
+FiniteVolume.THINC.UseNormal       = 1
+FiniteVolume.THINC.NormalThreshold = 0.4
+
+PhaseField.phase_field    = 0
+PhaseField.Eta_Multiplier = 0.5
+
+
+# =====================================================================
+# MATERIALS AND PROBLEM PARAMETERS
+# =====================================================================
+prob.EOS.EOS     = 0                       # Ideal gas
+prob.EOS.gamma_1 = 1.4                     # Air fills the domain
+prob.EOS.gamma_2 = 1.4                     # Material 2 is absent (alpha_1 = 1)
+prob.EOS.pinf_1  = 0.0
+prob.EOS.pinf_2  = 0.0
+
+prob.rho0    = 1.4                         # Gas at rest ahead of the shock
+prob.P0      = 1.0
+prob.Mach    = 10.0                        # Shock Mach number
+prob.theta_w = 30.0                        # Wedge angle in degrees
+prob.x0      = 0.16666666666666667         # Wedge tip, 1/6

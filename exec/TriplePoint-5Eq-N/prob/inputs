@@ -1,0 +1,123 @@
+# =====================================================================
+# TRIPLE-POINT PROBLEM
+# Three gases at rest in a 7 x 3 box with reflecting walls: a
+# high-pressure driver (material 2) on the left, and a dense (material 1)
+# and a light (material 3) low-pressure gas stacked on the right (Galera,
+# Maire and Breil, JCP 229, 2010). The case exercises the N-material
+# five-equation model (NPHASE = 3) with sharp initial interfaces.
+# Nondimensional units.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 100000          # Maximum number of time steps to advance
+stop_time = 5.0             # Final time of the reference problem
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# =====================================================================
+geometry.prob_lo     =  0.0  0.0 -1.0   # Lower bounds (x,y,z)
+geometry.prob_hi     =  7.0  3.0  1.0   # Upper bounds (x,y,z)
+geometry.is_periodic =  0    0    0
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 4 4 4            # Reflecting walls on all sides
+run.hi_bc = 4 4 4
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1
+run.sum_var = 4              # Index of the conserved variable summed each step for the NaN check (rho_v in 2D)
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# 224 x 96 square cells and two levels, 896 x 384 at the finest level
+# =====================================================================
+amr.n_cell      = 224 96 8   # Base grid resolution (coarsest level)
+amr.max_level   = 2          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2 2 2
+amr.n_error_buf = 1          # Buffer around tagged cells for refinement
+
+amr.blocking_factor_x = 8
+amr.blocking_factor_y = 8
+amr.blocking_factor_z = 8
+amr.max_grid_size     = 8
+amr.regrid_int        = 1
+amr.Interpolater      = "lincc_interp"
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.4
+run.do_subcycle             = 1
+run.check_cfl               = 0
+run.timestep_change_limiter = 0
+run.TimeIntegrator          = "TVD-RK3"
+run.do_reflux               = 1
+
+
+# =====================================================================
+# REFINEMENT CRITERIA: the gradient of the mixture density, which follows
+# the waves, and of the material indicator Phase = sum_p p alpha_p, which
+# follows the interfaces
+# =====================================================================
+run.refine.ref_vars        = rho Phase
+run.refine.rho.max_level   = 10
+run.refine.rho.grad        = 0.02 0.02 0.02 0.02 0.02 0.02 0.02 0.02 0.02
+run.refine.Phase.max_level = 10
+run.refine.Phase.grad      = 0.01 0.01 0.01 0.01 0.01 0.01 0.01 0.01
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/TriplePoint
+amr.plot_int         = 1000000
+amr.t_write_interval = 0.1                 # A plotfile every 0.1 time units
+run.output_vars      = a1 a2 a3 a1rho1 a2rho2 a3rho3 u v P
+amr.chk_file         = ./checkpoints/chk
+amr.chk_int          = 20000
+run.user_output_int  = 10                  # Material volumes and driver-gas extent along the walls every 10 coarse steps
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.source_term   = 0                  # Five-equation model without the K div(u) term
+Physics.RiemannSolver = "HLLC"
+
+FiniteVolume.Scheme = "MUSCL-MC"
+FiniteVolume.THINC  = 0                    # 1 for THINC reconstruction of the interfaces
+FiniteVolume.THINC.Beta            = 2.3
+FiniteVolume.THINC.EPS             = 1.0e-4
+FiniteVolume.THINC.UseNormal       = 1
+FiniteVolume.THINC.NormalThreshold = 0.4
+FiniteVolume.THINC.Multi           = 1     # Multi-dimensional THINC face averages
+FiniteVolume.THINC.FaceState       = 1     # Only the THINC side of a face is rebuilt; u and p keep the base scheme
+FiniteVolume.THINC.PhaseDensity    = 1     # Phase densities of the cell (use together with FaceState = 1)
+
+PhaseField.phase_field    = 0              # 1 for Phase-Field regularization of the interfaces
+PhaseField.cfl            = 0.3            # Used only when phase_field = 1
+PhaseField.Mechanism      = "ACDI"         # Used only when phase_field = 1
+PhaseField.ID_ExplicitRC  = 1              # Used only when phase_field = 1 (explicit)
+PhaseField.Eta_Multiplier = 0.0            # Sharp initial interfaces (they lie on cell faces)
+
+
+# =====================================================================
+# MATERIALS AND PROBLEM
+# Densities and pressures are set in ProblemICBC.H
+# =====================================================================
+prob.EOS.EOS   = 1                         # Stiffened gas; with pinf = 0 these are ideal gases
+prob.EOS.gamma = 1.4 1.5 1.5               # Dense gas (lower right), driver (left), light gas (upper right)
+prob.EOS.pinf  = 0.0 0.0 0.0

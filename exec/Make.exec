@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+# Copyright (C) 2026 The Regents of the University of Michigan
+# This file is part of COMPAS, free software under the GNU General Public License,
+# version 3 or later, with an additional permission under section 7. It comes with
+# ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
+
+# COMPAS_HOME is found from this file's location, so a case directory can live anywhere.
+# A case outside the repository includes $(COMPAS_HOME)/exec/Make.exec with COMPAS_HOME
+# set in the environment or on the make line. AMREX_HOME defaults to a sibling checkout.
+ifndef COMPAS_HOME
+COMPAS_HOME := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))..)
+endif
+ifndef AMREX_HOME
+AMREX_HOME  := $(abspath $(COMPAS_HOME)/../amrex)
+endif
+HEAD_DIR     = $(COMPAS_HOME)
+
+TOP := $(HEAD_DIR)
+
+EBASE := main
+
+BL_NO_FORT = TRUE
+
+include $(AMREX_HOME)/Tools/GNUMake/Make.defs
+
+Bdirs 	:= \
+source include include/Tools include/Operators_FV \
+include/Operators_FD include/Classes_Physics include/Operators_LinearSystem \
+include/Physics_Compressible_TwoPhase include/Physics_Compressible_TwoPhase_PhaseField \
+include/Physics_Compressible5Eq include/Operators_Compressible5Eq include/Physics_PhaseField \
+include/Operators_PhaseField include/Physics_Compressible5Eq_PhaseField \
+include/Operators_Compressible5Eq_PhaseField include/Physics_Compressible_NPhase \
+include/Physics_Compressible5Eq_NPhase include/Operators_Compressible5Eq_NPhase \
+include/Physics_Compressible_NPhase_PhaseField include/Physics_Compressible5Eq_NPhase_PhaseField \
+include/Operators_Compressible5Eq_NPhase_PhaseField include/Physics_Compressible6Eq \
+include/Operators_Compressible6Eq include/Physics_Compressible6Eq_PhaseField \
+include/Operators_Compressible6Eq_PhaseField include/Physics_Compressible6Eq_IE_NPhase \
+include/Operators_Compressible6Eq_IE_NPhase include/Physics_Compressible6Eq_IE_NPhase_PhaseField \
+include/Operators_Compressible6Eq_IE_NPhase_PhaseField
+
+Bpack	+= $(foreach dir, $(Bdirs), $(TOP)/$(dir)/Make.package)
+Blocs   += $(foreach dir, $(Bdirs), $(TOP)/$(dir))
+
+include $(Bpack)
+
+INCLUDE_LOCATIONS += $(Blocs)
+VPATH_LOCATIONS   += $(Blocs)
+
+Pdirs 	:= Base Boundary AmrCore LinearSolvers/MLMG
+Ppack	+= $(foreach dir, $(Pdirs), $(AMREX_HOME)/Src/$(dir)/Make.package)
+
+include $(Ppack)
+
+all: $(executable) 
+	@echo SUCCESS
+
+include $(AMREX_HOME)/Tools/GNUMake/Make.rules
+

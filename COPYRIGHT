@@ -1,0 +1,42 @@
+COMPAS, the COmpressible Multiphase multiPhysics Adaptive Solver
+Copyright (C) 2026 The Regents of the University of Michigan
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program, in the file LICENSE. If not, see <https://www.gnu.org/licenses/>.
+
+Report bugs and ask questions at <https://github.com/scfpl-umich/COMPAS/issues>.
+
+The contributors are listed in AUTHORS. Parts of COMPAS are derived from AMReX,
+which is distributed under the BSD-3-Clause license; see THIRD_PARTY_NOTICES.md.
+
+
+Additional permission under GNU GPL version 3 section 7
+
+If you modify this Program, or any covered work, by linking or combining it
+with any of the libraries listed below (or a modified version of that
+library), containing parts covered by the terms of that library's license,
+the licensors of this Program grant you additional permission to convey the
+resulting work.
+
+The libraries are:
+(a) the NVIDIA CUDA Toolkit, the NVIDIA HPC SDK, and the NVIDIA GPU driver
+    libraries;
+(b) the AMD ROCm software;
+(c) the Intel oneAPI toolkits, including the Intel oneAPI compilers and their
+    runtime libraries, the Intel MPI Library and the Intel oneAPI Math Kernel
+    Library;
+(d) the HPE Cray Programming Environment, including the Cray Compiling
+    Environment and Cray MPICH;
+(e) any implementation of the Message Passing Interface (MPI) standard,
+    together with the process-management and network libraries it requires;
+(f) the runtime, math and OpenMP libraries supplied with any compiler used
+    to build this Program.

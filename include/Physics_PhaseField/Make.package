@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+# Copyright (C) 2026 The Regents of the University of Michigan
+# This file is part of COMPAS, free software under the GNU General Public License,
+# version 3 or later, with an additional permission under section 7. It comes with
+# ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
+
+CEXE_headers += PhaseField_Parameter.H
+
+CEXE_headers += Mapping_Forward.H
+CEXE_headers += Mapping_Backward.H
+
+CEXE_headers += PotentialFunction_DoubleWell.H
+CEXE_headers += PotentialFunction_PhaseField.H
+
+CEXE_headers += WeightFunction_Quadratic.H
+CEXE_headers += WeightFunction_PhaseField.H
+
+CEXE_headers += ChemicalPotential_VanDerWaals.H
+CEXE_headers += ChemicalPotential_Adv.H
+
+CEXE_headers += PhaseFieldMechanism_AC.H
+CEXE_headers += PhaseFieldMechanism_CAC.H
+
+CEXE_headers += PhaseFieldFlux_CDI.H
+CEXE_headers += PhaseFieldFlux_ACDI.H
+
+CEXE_headers += PhaseFieldFlux2GradQPF.H

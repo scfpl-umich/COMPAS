@@ -1,0 +1,129 @@
+# =====================================================================
+# PLANAR WATER HAMMER (2D, pseudo-1D)
+# Water (material 1, stiffened gas, gamma = 4.4, pinf = 6e8 Pa) at
+# rho = 1000 kg/m^3 and P = 1e5 Pa moves at u = 1000 m/s toward a slip
+# wall at x = 1 m. The wall brings it to rest through a planar shock that
+# runs back into the water, with the water at rest behind it at the
+# water-hammer pressure P_wh = P0 + rho0 W u, where W is the shock speed
+# relative to the incoming water from the stiffened-gas Hugoniot. The strip
+# is 200 cells long and 4 cells high, periodic in y, and the zero-gradient
+# boundary at x = 0 keeps feeding the moving water. Material 2 (air) is
+# present only as a trace volume fraction of 1e-6. The run stops before the
+# shock reaches x = 0. SI units.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 100000          # Maximum number of time steps to advance
+stop_time = 3.2e-4          # s; the shock is then at about x = 0.21 m
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# =====================================================================
+geometry.prob_lo     =  0.0  0.0   -0.01   # Lower bounds (x,y,z), m
+geometry.prob_hi     =  1.0  0.02   0.01   # Upper bounds (x,y,z): a 1 m strip along x
+geometry.is_periodic =  0    1      0
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 2 0 4            # Zero-gradient inflow of the moving water at x = 0, periodic in y
+run.hi_bc = 4 0 4            # Slip wall at x = 1 m
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1
+run.sum_var = 0
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# 200 x 4 cells of 5 mm and a single level: the solution is piecewise
+# constant, and the shock is the only feature
+# =====================================================================
+amr.n_cell      = 200 4 4    # Base grid resolution (coarsest level)
+amr.max_level   = 0          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2 2 2
+amr.n_error_buf = 1          # Buffer around tagged cells for refinement
+
+amr.blocking_factor_x = 8
+amr.blocking_factor_y = 4
+amr.blocking_factor_z = 4
+amr.max_grid_size     = 40
+amr.regrid_int        = 1
+amr.Interpolater      = "lincc_interp"
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.4
+run.do_subcycle             = 1
+run.check_cfl               = 0
+run.timestep_change_limiter = 0
+run.TimeIntegrator          = "TVD-RK3"
+run.do_reflux               = 1
+
+
+# =====================================================================
+# REFINEMENT CRITERIA (with amr.max_level > 0): the jump in pressure
+# between neighboring cells, which follows the shock
+# =====================================================================
+run.refine.ref_vars    = P
+run.refine.P.max_level = 10
+run.refine.P.grad      = 1e8 1e8 1e8 1e8 1e8 1e8 1e8 1e8 1e8 1e8
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/WaterHammer-6Eq
+amr.plot_int         = 1000000
+amr.t_write_interval = 1.6e-5              # A plotfile every 16 microseconds, 20 in all after t = 0
+run.output_vars      = a1rho1 rho u v P a1
+amr.chk_file         = ./checkpoints/chk
+amr.chk_int          = 20000
+run.user_output_int  = 1                   # Shock position, wall pressure and wall velocity every coarse step
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.pressure_relaxation = 1            # Instantaneous pressure relaxation
+Physics.RiemannSolver       = "HLLC"
+
+FiniteVolume.Scheme = "MUSCL"
+FiniteVolume.THINC  = 0
+FiniteVolume.THINC.Beta            = 2.3
+FiniteVolume.THINC.EPS             = 1.0e-4
+FiniteVolume.THINC.UseNormal       = 1
+FiniteVolume.THINC.NormalThreshold = 0.4
+
+PhaseField.phase_field    = 0
+PhaseField.cfl            = 0.3
+PhaseField.Mechanism      = "CAC-Adv"
+PhaseField.ID_ExplicitRC  = 0
+PhaseField.Eta_Multiplier = 0.5
+
+
+# =====================================================================
+# MATERIALS AND PROBLEM (SI units)
+# =====================================================================
+prob.EOS.EOS     = 1                       # Stiffened gas
+prob.EOS.gamma_1 = 4.4                     # water
+prob.EOS.gamma_2 = 1.4                     # air, a trace (alpha_2 = 1e-6)
+prob.EOS.pinf_1  = 6e8                     # Pa
+prob.EOS.pinf_2  = 0.0
+
+prob.P0   = 1e5                            # pressure of the incoming water, Pa
+prob.rho0 = 1000                           # density of the incoming water, kg/m^3
+prob.u_in = 1000                           # speed of the incoming water toward the wall, m/s
+prob.rho2 = 1.2                            # density of the trace of air, kg/m^3
+prob.eps  = 1e-6                           # volume fraction of the trace of air

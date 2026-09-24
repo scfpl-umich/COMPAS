@@ -1,0 +1,126 @@
+# =====================================================================
+# SHOCK-INDUCED INSTABILITIES OF TWO SUCCESSIVE INTERFACES
+# A Mach 1.24 shock in SF6 (material 1) crosses a 10 mm layer of an
+# SF6-air mixture (material 2) into air (material 3), as in the shock-tube
+# experiments of Liang and Luo (JFM 955, 2023) and section 4.3 of the COMPAS
+# paper. Both interfaces carry a 2 mm sinusoidal perturbation of wavelength
+# 60 mm, and half a wavelength is simulated. SI units.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 10000000        # Maximum number of time steps to advance
+stop_time = 1.0e-3          # 1000 microseconds
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# =====================================================================
+geometry.prob_lo     = -0.020  0.0      # Lower bounds (x,y), m
+geometry.prob_hi     =  0.130  0.030    # Upper bounds (x,y), m: half a wavelength in y
+geometry.is_periodic =  0      0
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 2 3              # Outflow at the ends of the tube, symmetry at y = 0
+run.hi_bc = 2 3              # and at y = lambda/2
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1
+run.sum_var = 0
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# 80 x 16 square cells and three levels, 640 x 128 at the finest level
+# (the paper uses amr.max_level = 5, 2560 x 512)
+# =====================================================================
+amr.n_cell      = 80 16 8    # Base grid resolution (coarsest level)
+amr.max_level   = 3          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2 2 2 2
+amr.n_error_buf = 2          # Buffer around tagged cells for refinement
+
+amr.blocking_factor_x = 8
+amr.blocking_factor_y = 8
+amr.blocking_factor_z = 8
+amr.max_grid_size     = 32
+amr.regrid_int        = 2
+amr.Interpolater      = "lincc_interp"
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.4
+run.do_subcycle             = 1
+run.check_cfl               = 0
+run.timestep_change_limiter = 0
+run.TimeIntegrator          = "TVD-RK3"
+run.do_reflux               = 1
+
+
+# =====================================================================
+# REFINEMENT CRITERIA: the gradient of the mixture density (kg/m^3 per
+# cell), which follows the shocks and both interfaces
+# =====================================================================
+run.refine.ref_vars      = rho
+run.refine.rho.max_level = 10
+run.refine.rho.grad      = 0.05 0.05 0.05 0.05 0.05 0.05 0.05 0.05
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/ThreeMaterialRM
+amr.plot_int         = 10000000
+amr.t_write_interval = 2.5e-5              # A plotfile every 25 microseconds
+run.output_vars      = a1 a2 a3 rho u v P
+amr.chk_file         = ./checkpoints/chk
+amr.chk_int          = 20000
+run.user_output_int  = 1                   # Interface positions, amplitudes and thickness every coarse step
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.source_term   = 1                  # Five-equation model with the K div(u) term
+Physics.RiemannSolver = "HLLC"
+
+FiniteVolume.Scheme = "MUSCL-MC"
+FiniteVolume.THINC  = 0                    # 1 for THINC reconstruction of the interfaces
+FiniteVolume.THINC.Beta            = 2.3
+FiniteVolume.THINC.EPS             = 1.0e-4
+FiniteVolume.THINC.UseNormal       = 1
+FiniteVolume.THINC.NormalThreshold = 0.4
+FiniteVolume.THINC.Multi           = 1     # Multi-dimensional THINC face averages
+FiniteVolume.THINC.FaceState       = 1     # Only the THINC side of a face is rebuilt; u and p keep the base scheme
+FiniteVolume.THINC.PhaseDensity    = 1     # Phase densities of the cell (use together with FaceState = 1)
+
+PhaseField.phase_field    = 0              # 1 for Phase-Field regularization of the interfaces
+PhaseField.Eta_Multiplier = 0.5            # Initial interface width, eta = 0.5 finest cells (about 2 cells from 5% to 95%)
+
+
+# =====================================================================
+# MATERIALS AND PROBLEM (paper, section 4.3)
+# =====================================================================
+prob.EOS.EOS   = 0
+prob.EOS.gamma = 1.1074 1.2040 1.400      # SF6, SF6-air mixture, air
+prob.EOS.pinf  = 0.0    0.0    0.0
+
+prob.rho      = 6.14 4.48 1.79             # kg/m^3
+prob.P0       = 101325.0                   # Pa
+prob.Mach     = 1.24                       # shock Mach number in SF6
+prob.x_shock  = -0.004                     # initial shock position, m
+prob.x_12     = 0.0                        # mean position of the SF6 / mixture interface
+prob.L_2      = 0.010                      # thickness of the mixture layer
+prob.amp      = 0.002                      # perturbation amplitude (0 for flat interfaces)
+prob.lambda   = 0.060                      # perturbation wavelength
+prob.phase_23 = -1                         # second interface anti-phase (-1), as in the paper, or in phase (+1)

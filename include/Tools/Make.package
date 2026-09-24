@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+# Copyright (C) 2026 The Regents of the University of Michigan
+# This file is part of COMPAS, free software under the GNU General Public License,
+# version 3 or later, with an additional permission under section 7. It comes with
+# ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
+
+CEXE_headers += Sign.H
+CEXE_headers += ReplaceString.H
+CEXE_headers += Print.H
+CEXE_HEADERS += STL_Reader.H
+CEXE_HEADERS += LogUtils.H
+CEXE_HEADERS += Banner.H
+CEXE_headers += UserOutput.H

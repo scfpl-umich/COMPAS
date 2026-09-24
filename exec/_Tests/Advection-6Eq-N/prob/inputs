@@ -1,0 +1,147 @@
+# =====================================================================
+# ADVECTION OF FOUR SHAPES, N-PHASE SIX-EQUATION MODEL
+# Materials 2 to 5 fill a slotted disk (Zalesak, JCP 31, 1979), a square,
+# a circle and a triangle in material 1, with densities 1 to 5. The
+# pressure and velocity are uniform, so the exact solution is a translation
+# (Abgrall, JCP 125, 1996). The box is periodic and the flow is along the
+# diagonal, so stop_time is one period. This is the base smoke test of the
+# N-phase six-equation model (internal energy form, NPHASE = 5, set in the
+# GNUmakefile) with pressure relaxation and ACDI Phase-Field, and
+# variants.txt reruns it with each reconstruction scheme, Riemann solver,
+# EOS and Phase-Field family. Nondimensional units.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# Run until either:
+#   - max_step time steps are reached, OR
+#   - stop_time (physical time) is reached
+# =====================================================================
+max_step  = 100000          # Maximum number of time steps to advance
+stop_time = 2.0             # One period of the translation at (u,v) = (1,1)
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# =====================================================================
+geometry.prob_lo     = -1.0 -1.0        # Lower bounds (x,y)
+geometry.prob_hi     =  1.0  1.0        # Upper bounds (x,y)
+geometry.is_periodic =  1    1          # Periodic in x and y
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+# BC types:
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 0 0              # Lower BCs in (x,y)
+run.hi_bc = 0 0              # Upper BCs in (x,y)
+
+
+# =====================================================================
+# VERBOSITY SETTINGS
+# =====================================================================
+amr.v       = 1              # AMR verbosity level
+run.sum_var = 0              # Index of the variable summed each step to check for NaNs
+
+
+# =====================================================================
+# GRID RESOLUTION AND REFINEMENT SETTINGS
+# 64 x 64 base grid and two levels, 256 x 256 at the finest level
+# =====================================================================
+amr.n_cell      = 64 64      # Base grid resolution (coarsest level)
+amr.max_level   = 2          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2 2 2  # Refinement ratio between levels
+amr.n_error_buf = 1          # Buffer around tagged cells for refinement
+
+
+# =====================================================================
+# GRID CREATION & BLOCKING RULES
+# =====================================================================
+amr.blocking_factor_x = 16   # Minimum grid block size in x
+amr.blocking_factor_y = 16   # Minimum grid block size in y
+amr.max_grid_size     = 16   # Maximum grid patch size
+amr.regrid_int        = 1    # Regrid every N steps
+amr.Interpolater      = "lincc_interp" # Coarse-fine BC interpolater
+
+
+# =====================================================================
+# TIME STEPPING AND CFL CONTROL
+# =====================================================================
+run.cfl                     = 0.4         # CFL number
+run.do_subcycle             = 1           # Subcycle child levels in time
+run.check_cfl               = 0           # Enable/disable CFL safety checks
+run.timestep_change_limiter = 0           # Limit timestep growth/shrink
+run.TimeIntegrator          = "TVD-RK3"   # Time integration scheme
+
+
+# =====================================================================
+# REFLUXING CONTROL
+# Ensures conservation across coarse-fine boundaries
+# =====================================================================
+run.do_reflux = 1                         # Enable refluxing
+
+
+# =====================================================================
+# REFINEMENT TAGGING SETTINGS
+# Refine on the gradient of alpha_1, which borders every shape, and on the
+# density gradient
+# =====================================================================
+run.refine.ref_vars      = a1 rho
+
+run.refine.a1.max_level  = 10             # Maximum refinement allowed by tag
+run.refine.a1.grad       = 0.01 0.01 0.01 0.01 0.01 0.01 0.01  # Gradient per cell, per level
+
+run.refine.rho.max_level  = 10             # Maximum refinement allowed by tag
+run.refine.rho.grad       = 0.1 0.1 0.1 0.1 0.1 0.1 0.1  # Gradient per cell, per level
+
+
+# =====================================================================
+# PLOTFILE OUTPUT CONTROL
+# =====================================================================
+amr.case_name        = ./plot/Advection6Eq-N   # Output directory and file prefix
+amr.plot_int         = 1000000      # Frequency of plotfile generation
+amr.t_write_interval = 0.2          # A plotfile every 0.2 time units
+
+run.output_vars = a1rho1 rho u v P a1 a2 a3 a4 a5 # Variables to include in plotfiles
+
+run.user_output_int = 1             # Volumes, bounds and equilibrium errors every coarse step
+
+
+# =====================================================================
+# CHECKPOINT CONTROL
+# =====================================================================
+amr.chk_file = ./checkpoints/chk    # Prefix for checkpoint files
+amr.chk_int  = 20000                # Steps between checkpoints
+
+
+# =====================================================================
+# PHYSICS OPTIONS
+# =====================================================================
+Physics.pressure_relaxation = 1      # Instantaneous pressure relaxation
+Physics.RiemannSolver = "HLLC"       # Riemann solver type
+
+PhaseField.phase_field    = 1        # Phase-Field regularization of the interfaces
+PhaseField.cfl            = 0.3      # Phase-field CFL number
+PhaseField.Mechanism      = "ACDI"   # Phase-Field model
+PhaseField.ID_ExplicitRC  = 1        # 0 implicit, 1 explicit Phase-Field treatment
+PhaseField.Eta_Multiplier = 0.5      # Initial interface width, eta = 0.5 finest cells
+
+FiniteVolume.Scheme = "MUSCL-MC"     # FV reconstruction scheme
+
+FiniteVolume.THINC = 0               # 1 for THINC reconstruction of the interfaces
+FiniteVolume.THINC.Beta = 1.8
+FiniteVolume.THINC.EPS = 1.0e-4
+FiniteVolume.THINC.UseNormal = 1
+FiniteVolume.THINC.NormalThreshold = 0.4
+
+
+# =====================================================================
+# MATERIALS
+# Stiffened gas (EOS = 1) with pinf = 0, one entry per material. The
+# variants switch to ideal gas (0) and Mie-Grueneisen (2).
+# =====================================================================
+prob.EOS.EOS   = 1
+prob.EOS.gamma = 1.4 1.6 1.8 1.4 1.4
+prob.EOS.pinf  = 0.0 0.0 0.0 0.0 0.0

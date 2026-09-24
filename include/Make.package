@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+# Copyright (C) 2026 The Regents of the University of Michigan
+# This file is part of COMPAS, free software under the GNU General Public License,
+# version 3 or later, with an additional permission under section 7. It comes with
+# ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
+
+CEXE_HEADERS += Macros.H
+CEXE_HEADERS += LoopMacros.H
+
+CEXE_headers += bc_fill.H
+CEXE_headers += Kernels.H 
+CEXE_headers += Tagging.H
+
+
+CEXE_headers += COMPAS.H 
+CEXE_headers += IncludePhysics.H
+
+CEXE_HEADERS += PreConstructors.H
+CEXE_HEADERS += DerivedVelocityGradient.H
+
+CEXE_headers += InitData.H
+CEXE_HEADERS += PhysicsFunctions.H
+CEXE_HEADERS += LinearAlgebra.H
+
+
+CEXE_HEADERS += Tools.H
+CEXE_HEADERS += Operators_FV.H
+CEXE_HEADERS += Operators_FD.H
+CEXE_HEADERS += Operators_LinearSystem.H
+
+
+CEXE_HEADERS += Physics_Compressible_TwoPhase.H
+CEXE_HEADERS += Physics_Compressible5Eq.H
+CEXE_HEADERS += Operators_Compressible5Eq.H
+
+CEXE_HEADERS += Physics_Compressible_NPhase.H
+CEXE_HEADERS += Physics_Compressible5Eq_NPhase.H
+CEXE_HEADERS += Operators_Compressible5Eq_NPhase.H
+
+CEXE_HEADERS += Physics_PhaseField.H
+CEXE_HEADERS += Operators_PhaseField.H
+
+CEXE_HEADERS += Physics_Compressible_TwoPhase_PhaseField.H
+CEXE_HEADERS += Physics_Compressible5Eq_PhaseField.H
+CEXE_HEADERS += Operators_Compressible5Eq_PhaseField.H
+
+CEXE_HEADERS += Physics_Compressible_NPhase_PhaseField.H
+CEXE_HEADERS += Physics_Compressible5Eq_NPhase_PhaseField.H
+CEXE_HEADERS += Operators_Compressible5Eq_NPhase_PhaseField.H
+
+CEXE_HEADERS += Physics_Compressible6Eq.H
+CEXE_HEADERS += Operators_Compressible6Eq.H
+
+CEXE_HEADERS += Physics_Compressible6Eq_PhaseField.H
+CEXE_HEADERS += Operators_Compressible6Eq_PhaseField.H
+
+CEXE_HEADERS += Physics_Compressible6Eq_IE_NPhase.H
+CEXE_HEADERS += Operators_Compressible6Eq_IE_NPhase.H
+
+CEXE_HEADERS += Physics_Compressible6Eq_IE_NPhase_PhaseField.H
+CEXE_HEADERS += Operators_Compressible6Eq_IE_NPhase_PhaseField.H
+
+CEXE_HEADERS += Physics_DerivedClasses.H
+
+CEXE_HEADERS += IncludeOperators.H

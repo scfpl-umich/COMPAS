@@ -1,0 +1,4 @@
+# Settings for the DCO app (https://github.com/apps/dco). A contributor who forgot to sign off can
+# fix it with a later signed-off commit instead of rewriting history.
+allowRemediationCommits:
+  individual: true

@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+# Copyright (C) 2026 The Regents of the University of Michigan
+# This file is part of COMPAS, free software under the GNU General Public License,
+# version 3 or later, with an additional permission under section 7. It comes with
+# ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
+
+CEXE_headers += LinearSystem_Parameter.H
+
+CEXE_headers += Solver_MLMG.H
+CEXE_headers += Solver_MLMG_AtLevel.H
+CEXE_headers += Solver_MLMG_AllLevels.H
+
+CEXE_headers += ConstructABecLaplacian.H
+CEXE_headers += ConstructABecLaplacian_HomBC.H
+
+CEXE_headers += ConstructABecLaplacianAtLevel.H
+CEXE_headers += ConstructABecLaplacianAtLevel_HomBC.H
+
+CEXE_headers += ConstructABecLaplacianAllLevels.H
+CEXE_headers += ConstructABecLaplacianAllLevels_HomBC.H
+
+CEXE_headers += SolveABecLaplacianAtLevel.H
+CEXE_headers += SolveABecLaplacianAtLevel_HomBC.H
+
+CEXE_headers += SolveABecLaplacianComposite.H
+CEXE_headers += SolveABecLaplacianComposite_HomBC.H
+
+CEXE_headers += SolveABecLaplacianAllLevels.H
+CEXE_headers += SolveABecLaplacianAllLevels_HomBC.H
+
+CEXE_headers += SolveABecLaplacian.H
+CEXE_headers += SolveABecLaplacian_HomBC.H
+
+CEXE_headers += SolveABecLaplacianLevels.H
+CEXE_headers += SolveABecLaplacianLevels_HomBC.H

@@ -1,0 +1,140 @@
+# =====================================================================
+# NONSPHERICAL COLLAPSE OF A GAS BUBBLE NEAR A RIGID WALL
+# A gas bubble of radius r0 at low pressure collapses in water at 100 atm
+# next to a wall, the near-wall collapse problem of Johnsen and Colonius
+# (J. Fluid Mech. 629, 2009). The bubble center is 2 r0 from the wall, and a
+# quarter of the bubble is simulated, with symmetry at y = 0 and z = 0.
+# The case exercises the six-equation model with pressure relaxation and
+# THINC in 3D, without subcycling, and a user spatio-temporal refinement
+# function. Nondimensional units: lengths in r0, time in the Rayleigh
+# collapse time t_c = 0.915 r0 sqrt(rho_liquid / P_liquid), velocities in
+# r0 / t_c and pressures in rho_liquid (r0 / t_c)^2 (see prob/Parm.H).
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 100000          # Maximum number of time steps to advance
+stop_time = 1.5             # In units of t_c
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# =====================================================================
+geometry.prob_lo     =  0.0   0.0   0.0     # Lower bounds (x,y,z), in units of r0
+geometry.prob_hi     =  32.0  32.0  32.0    # Upper bounds (x,y,z)
+geometry.is_periodic =  0     0     0
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 4 3 3            # Wall at x = 0, symmetry planes through the bubble center at y = 0 and z = 0
+run.hi_bc = 2 2 2            # Outflow on the far sides
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1
+run.sum_var = 0
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# 64^3 cells and two levels, dx = r0/8 at the finest level
+# =====================================================================
+amr.n_cell      = 64 64 64   # Base grid resolution (coarsest level)
+amr.max_level   = 2          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2 2 2 2 2
+amr.n_error_buf = 1          # Buffer around tagged cells for refinement
+
+amr.blocking_factor_x = 8
+amr.blocking_factor_y = 8
+amr.blocking_factor_z = 8
+amr.max_grid_size     = 8
+amr.regrid_int        = 0    # The grids are built at initialization and never regridded
+amr.Interpolater      = "quartic_interp"
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.4
+run.do_subcycle             = 0
+run.check_cfl               = 0
+run.timestep_change_limiter = 0
+run.TimeIntegrator          = "TVD-RK3"
+run.do_reflux               = 1
+
+
+# =====================================================================
+# REFINEMENT CRITERIA: the gas (a1 > 0.5) and the pressure gradient, in
+# addition to the box around the bubble set by spatio_temporal_tag in
+# prob/ProblemICBC.H
+# =====================================================================
+run.refine.ref_vars = a1 P
+
+run.refine.a1.max_level     = 10
+run.refine.a1.value_greater = 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5
+
+run.refine.P.max_level = 10
+run.refine.P.grad      = 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/NonsphericalCollapse-6Eq
+amr.plot_int         = 100000000
+amr.t_write_interval = 0.05                # A plotfile every 0.05 t_c
+run.output_vars      = a1rho1 rho u v w P a1
+
+amr.n_output_windows     = 1               # Plotfiles every 0.01 t_c for 1.0 <= t <= 1.3
+amr.output_window_0.t_lo = 1.0
+amr.output_window_0.t_hi = 1.3
+amr.output_window_0.dt   = 0.01
+
+amr.chk_file        = ./checkpoints/chk
+amr.chk_int         = 20000
+run.user_output_int = 1                    # Bubble volume, centroid and wall pressure every coarse step
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.pressure_relaxation = 1   # Instantaneous pressure relaxation
+Physics.RiemannSolver       = "HLLC"
+
+FiniteVolume.Scheme = "MUSCL"
+FiniteVolume.THINC  = 1                    # THINC reconstruction of the volume fraction
+FiniteVolume.THINC.Beta      = 2.3
+FiniteVolume.THINC.EPS       = 1.0e-4
+FiniteVolume.THINC.UseNormal = 1
+
+PhaseField.phase_field    = 0              # Phase-Field regularization off
+PhaseField.cfl            = 0.3
+PhaseField.Mechanism      = "ACDI"
+PhaseField.ID_ExplicitRC  = 1
+PhaseField.Eta_Multiplier = 0.0            # Initial interface width, 0 gives a sharp initial interface
+
+
+# =====================================================================
+# MATERIALS AND PROBLEM
+# Material 1 is the gas, material 2 is water. The EOS values are in SI
+# units and pinf is scaled by the pressure unit in prob/Parm.H.
+# =====================================================================
+prob.EOS.EOS     = 1
+prob.EOS.gamma_1 = 1.4                     # Gas
+prob.EOS.gamma_2 = 4.4                     # Water, stiffened gas
+prob.EOS.pinf_1  = 0.0
+prob.EOS.pinf_2  = 6e8                     # Pa
+
+prob.r0         = 0.005                    # Initial bubble radius, m
+prob.delta      = -2.0                     # The bubble center is at x = -delta, in units of r0
+prob.rho_liquid = 1000.0                   # kg/m^3
+prob.rho_gas    = 1.2                      # kg/m^3
+prob.P_liquid   = 10132500.0               # Far-field liquid pressure, Pa (100 atm)
+prob.P_gas      = 2339.0                   # Gas pressure, Pa

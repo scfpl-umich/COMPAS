@@ -1,0 +1,123 @@
+# =====================================================================
+# SOD SHOCK TUBE (3D)
+# The shock tube of Sod (J. Comput. Phys. 27, 1978): gas at rest with
+# rho = 1, P = 1 for x < 0.5 and rho = 0.125, P = 0.1 for x > 0.5, run to
+# t = 0.2. Material 1 (gamma = 1.4) fills the tube and material 2 is absent.
+# The case runs the two-phase five-equation model in 3D with AMR and outflow
+# boundaries. variants.txt runs the tube along y and z, and between walls.
+# water-air sets a two-material water-air shock tube with the optional prob.*
+# states described in ProblemICBC.H.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 100000          # Maximum number of time steps to advance
+stop_time = 0.2
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# =====================================================================
+geometry.prob_lo     =  0.0  0.0  0.0   # Lower bounds (x,y,z)
+geometry.prob_hi     =  1.0  0.1  0.1   # Upper bounds (x,y,z): a unit tube along x
+geometry.is_periodic =  0    0    0
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 2 2 2            # Outflow on all sides
+run.hi_bc = 2 2 2
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1
+run.sum_var = 0
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# 256 x 4 x 4 cells and two levels, 1024 cells along the tube at the finest level
+# =====================================================================
+amr.n_cell      = 256 4 4    # Base grid resolution (coarsest level)
+amr.max_level   = 2          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2 2 2
+amr.n_error_buf = 1          # Buffer around tagged cells for refinement
+
+amr.blocking_factor_x = 16
+amr.blocking_factor_y = 4
+amr.blocking_factor_z = 4
+amr.max_grid_size     = 16
+amr.regrid_int        = 1
+amr.Interpolater      = "lincc_interp"
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.4
+run.do_subcycle             = 1
+run.check_cfl               = 0
+run.timestep_change_limiter = 0
+run.TimeIntegrator          = "TVD-RK3"
+run.do_reflux               = 1
+
+
+# =====================================================================
+# REFINEMENT CRITERIA: jumps in pressure and density between neighboring
+# cells, which follow the shock, the contact and the rarefaction
+# =====================================================================
+run.refine.ref_vars      = P rho
+run.refine.P.max_level   = 10
+run.refine.P.grad        = 0.01 0.01 0.01 0.01 0.01 0.01 0.01 0.01 0.01 0.01
+run.refine.rho.max_level = 10
+run.refine.rho.grad      = 0.01 0.01 0.01 0.01 0.01 0.01 0.01 0.01 0.01 0.01
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/Sod-5Eq
+amr.plot_int         = 1000000
+amr.t_write_interval = 0.01                # A plotfile every 0.01
+run.output_vars      = a1rho1 rho u v w P a1
+amr.chk_file         = ./checkpoints/chk
+amr.chk_int          = 20000
+run.user_output_int  = 1                   # Shock position, mass and momentum every coarse step
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.source_term   = 1                  # Five-equation model with the K div(u) term
+Physics.RiemannSolver = "HLLC"
+
+FiniteVolume.Scheme = "MUSCL"
+FiniteVolume.THINC  = 0
+FiniteVolume.THINC.Beta            = 2.3
+FiniteVolume.THINC.EPS             = 1.0e-4
+FiniteVolume.THINC.UseNormal       = 1
+FiniteVolume.THINC.NormalThreshold = 0.4
+
+PhaseField.phase_field    = 0
+PhaseField.cfl            = 0.3
+PhaseField.Mechanism      = "CAC-Adv"
+PhaseField.ID_ExplicitRC  = 0
+PhaseField.Eta_Multiplier = 0.5
+
+
+# =====================================================================
+# MATERIALS AND PROBLEM
+# =====================================================================
+prob.EOS.EOS     = 1                       # Stiffened gas
+prob.EOS.gamma_1 = 1.4                     # Material 1 fills the tube
+prob.EOS.gamma_2 = 1.6                     # Material 2 is absent (alpha_1 = 1)
+prob.EOS.pinf_1  = 0.0
+prob.EOS.pinf_2  = 1.0
+
+prob.direction = 0                         # Direction of the tube: 0 = x, 1 = y, 2 = z

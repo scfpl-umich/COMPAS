@@ -1,0 +1,139 @@
+# =====================================================================
+# DROPLET SPLASHING
+# A heavy droplet (material 2, radius 0.25) falls under gravity through a
+# light gas (material 1) into a pool of the same heavy material, in a
+# closed box. The density ratio is 100. The case exercises the viscous
+# two-material five-equation model with gravity added through the user
+# source term. Nondimensional units.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 1000000         # Maximum number of time steps to advance
+stop_time = 3.0             # Maximum physical time to integrate to
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# =====================================================================
+geometry.prob_lo     = -1.0 -0.5 -1.0   # Lower bounds (x,y,z)
+geometry.prob_hi     =  1.0  2.5  1.0   # Upper bounds (x,y,z)
+geometry.is_periodic =  0    0    0
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 4 4 4            # Closed box with slip walls
+run.hi_bc = 4 4 4
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1
+run.sum_var = 4              # Index of the conserved variable summed each step for the NaN check (rho_E in 2D)
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# 64 x 96 square cells and two levels, 256 x 384 at the finest level
+# =====================================================================
+amr.n_cell      = 64 96 8    # Base grid resolution (coarsest level)
+amr.max_level   = 2          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2 2 2
+amr.n_error_buf = 1          # Buffer around tagged cells for refinement
+
+amr.blocking_factor_x = 8
+amr.blocking_factor_y = 8
+amr.blocking_factor_z = 8
+amr.max_grid_size     = 8
+amr.regrid_int        = 1
+amr.Interpolater      = "lincc_interp"
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.4
+run.do_subcycle             = 1
+run.check_cfl               = 0
+run.timestep_change_limiter = 0
+run.TimeIntegrator          = "TVD-RK3"
+run.do_reflux               = 1
+
+
+# =====================================================================
+# REFINEMENT CRITERIA: the gradients of the volume fraction, which follows
+# the droplet and the pool surface, and of the mixture density
+# =====================================================================
+run.refine.ref_vars      = a1 rho
+run.refine.a1.max_level  = 10
+run.refine.a1.grad       = 0.1 0.1 0.1 0.1 0.1 0.1 0.1
+run.refine.rho.max_level = 10
+run.refine.rho.grad      = 10.0 10.0 10.0 10.0 10.0 10.0 10.0 10.0
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/DropletSplashing-5Eq
+amr.plot_int         = 1000000
+amr.t_write_interval = 0.05                # A plotfile every 0.05 time units
+run.output_vars      = a1rho1 rho u v P a1
+amr.chk_file         = ./checkpoints/chk
+amr.chk_int          = 20000
+run.user_output_int  = 10                  # Droplet and splash volume, height and velocity every 10 coarse steps
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.source_term   = 0                  # Five-equation model without the K div(u) term
+Physics.RiemannSolver = "HLLC"
+
+FiniteVolume.Scheme = "MUSCL-MC"
+FiniteVolume.THINC              = 0        # 1 for THINC reconstruction of the interfaces
+FiniteVolume.THINC.Multi        = 1        # Multi-dimensional THINC face averages
+FiniteVolume.THINC.FaceState    = 1        # Only the THINC side of a face is rebuilt; u and p keep the base scheme
+FiniteVolume.THINC.PhaseDensity = 1        # Phase densities of the cell (use together with FaceState = 1)
+
+PhaseField.phase_field    = 0              # 1 for Phase-Field regularization of the interfaces
+PhaseField.cfl            = 0.3            # Used only when phase_field = 1
+PhaseField.Mechanism      = "ACDI"         # Used only when phase_field = 1
+PhaseField.ID_ExplicitRC  = 1              # Used only when phase_field = 1 (explicit)
+PhaseField.Eta_Multiplier = 0.5            # Initial interface width, eta = 0.5 finest cells
+
+
+# =====================================================================
+# MATERIALS AND PROBLEM
+# =====================================================================
+prob.EOS.EOS     = 1                       # Stiffened gas; with pinf = 0 both are ideal gases
+prob.EOS.gamma_1 = 1.4                     # Surrounding gas
+prob.EOS.gamma_2 = 1.4                     # Droplet and pool
+prob.EOS.pinf_1  = 0.0
+prob.EOS.pinf_2  = 0.0
+
+prob.EOS.mu_1    = 0.001                   # Shear viscosities
+prob.EOS.mu_2    = 0.001
+prob.EOS.muB_1   = 0.0                     # Bulk viscosities
+prob.EOS.muB_2   = 0.0
+prob.EOS.kappa_1 = 0.0                     # No heat conduction
+prob.EOS.kappa_2 = 0.0
+prob.EOS.cv_1    = 1.0
+prob.EOS.cv_2    = 1.0
+
+prob.rho1 = 1.0                            # Density of the surrounding gas
+prob.rho2 = 100.0                          # Density of the droplet and the pool
+prob.a0   = 0.0                            # Pool surface perturbation amplitude (0: flat surface at y = 0)
+prob.P0   = 100                            # Pressure at the pool surface
+
+prob.xc = 0.0                              # Droplet center and radius
+prob.yc = 2.0
+prob.R  = 0.25
+
+prob.gx = 0.0                              # Gravitational acceleration (prob.gz in 3D, default 0)
+prob.gy = -1.0

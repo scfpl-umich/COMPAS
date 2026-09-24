@@ -1,0 +1,69 @@
+# Disabled for now: rename to compas-test.yml to enable.
+#
+# Build and run every case in exec/_Tests on each pull request and each push to main. The job
+# name "build-test-cases" is what the branch ruleset selects as a required status check. Do not
+# add path filters: a required check that is skipped stays pending and blocks the merge.
+name: COMPAS Test Cases
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-cases:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    # -------------------------------------------------------
+    # Checkout COMPAS and clone the tested AMReX release next to it:
+    #   ./COMPAS
+    #   ./amrex
+    # -------------------------------------------------------
+    - name: Checkout COMPAS repository
+      uses: actions/checkout@v7
+      with:
+        path: COMPAS
+
+    - name: Clone AMReX
+      run: git clone --depth 1 --branch 26.01 https://github.com/AMReX-Codes/amrex.git amrex
+
+    # -------------------------------------------------------
+    # Install build dependencies
+    # -------------------------------------------------------
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential make mpich
+
+    # -------------------------------------------------------
+    # Build and run every case in exec/_Tests with its variants
+    # -------------------------------------------------------
+    - name: Build and run COMPAS test cases
+      run: bash COMPAS/scripts/test_cases.sh --verbose
+
+    # -------------------------------------------------------
+    # Upload logs + CSV summary
+    # -------------------------------------------------------
+    - name: Upload log artifacts
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: compas-testcase-artifacts
+        path: |
+          COMPAS/scripts/logs/
+          COMPAS/scripts/test_summary.csv

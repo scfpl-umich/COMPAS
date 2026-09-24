@@ -1,0 +1,9 @@
+# Run-time variants of this case, run by scripts/test_cases.sh with the same executable.
+# The base inputs use WENO5. Each variant swaps in another reconstruction scheme, so that
+# running them all to stop_time compares the schemes on the entropy waves behind the shock.
+
+godunov    max_step=40 FiniteVolume.Scheme=GODUNOV
+muscl      max_step=40 FiniteVolume.Scheme=MUSCL
+muscl-mc   max_step=40 FiniteVolume.Scheme=MUSCL-MC
+weno3      max_step=40 FiniteVolume.Scheme=WENO3
+weno5b     max_step=40 FiniteVolume.Scheme=WENO5B

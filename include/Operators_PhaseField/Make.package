@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+# Copyright (C) 2026 The Regents of the University of Michigan
+# This file is part of COMPAS, free software under the GNU General Public License,
+# version 3 or later, with an additional permission under section 7. It comes with
+# ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
+
+CEXE_headers += FDM_ChemicalPotential_VanDerWaals_D.H
+CEXE_headers += FDM_ChemicalPotential_VanDerWaals_K.H
+
+CEXE_headers += FDM_ChemicalPotential_Adv_D.H
+CEXE_headers += FDM_ChemicalPotential_Adv_K.H
+CEXE_headers += FDM_ChemicalPotential_Adv_NormalFace_D.H
+CEXE_headers += FDM_ChemicalPotential_Adv_NormalFace_K.H
+
+CEXE_headers += FDM_PhaseFieldMechanism_ACVanDerWaals_D.H
+CEXE_headers += FDM_PhaseFieldMechanism_ACVanDerWaals_K.H
+
+CEXE_headers += FDM_PhaseFieldMechanism_ACAdv_D.H
+CEXE_headers += FDM_PhaseFieldMechanism_ACAdv_K.H
+CEXE_headers += FDM_PhaseFieldMechanism_ACAdv_NormalFace_D.H
+CEXE_headers += FDM_PhaseFieldMechanism_ACAdv_NormalFace_K.H
+
+CEXE_headers += FDM_PhaseFieldFlux_CDI_D.H
+CEXE_headers += FDM_PhaseFieldFlux_CDI_K.H
+CEXE_headers += FDM_PhaseFieldFlux_CDI_CompressionInterpolation_D.H
+CEXE_headers += FDM_PhaseFieldFlux_CDI_CompressionInterpolation_K.H
+CEXE_headers += FDM_PhaseFieldFlux_CDI_NormalFace_D.H
+CEXE_headers += FDM_PhaseFieldFlux_CDI_NormalFace_K.H
+
+CEXE_headers += FDM_PhaseFieldFlux_ACDI_D.H
+CEXE_headers += FDM_PhaseFieldFlux_ACDI_K.H
+CEXE_headers += FDM_PhaseFieldFlux_ACDI_NormalFace_D.H
+CEXE_headers += FDM_PhaseFieldFlux_ACDI_NormalFace_K.H

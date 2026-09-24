@@ -1,0 +1,134 @@
+# =====================================================================
+# COMPRESSIBLE KELVIN-HELMHOLTZ INSTABILITY OF A TANH SHEAR LAYER
+# The shear layer u = U tanh(y/delta) at uniform density and pressure,
+# with Blumen's Mach number M = U/a, is seeded with one small mode of
+# wavelength Lx = 2 pi/alpha_max, the most unstable wavelength of Blumen
+# (J. Fluid Mech. 40, 1970, Table 1). The mode grows at Blumen's rate
+# alpha c_i U/delta and then rolls up into a Kelvin-Helmholtz vortex.
+# Both materials are the same ideal gas, so alpha_1 is a passive tracer
+# of the layer. One wavelength is periodic in x, with slip walls far
+# above and below. Nondimensional units, U = delta = rho = 1.
+#
+# This file is set for M = 0.4 (alpha_max = 0.409). The other Mach numbers
+# change prob.Mach, the domain and the grid on the command line; see
+# docs/verification.md.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 10000000         # Maximum number of time steps to advance
+stop_time = 100.0            # Linear growth, roll-up and saturation
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# One wavelength, Lx = 2 pi/0.409, in x. The height is 160 square cells
+# on the base grid, about 20 delta on each side of the layer.
+# =====================================================================
+geometry.prob_lo     =  0.0       -19.82234 -1.0   # Lower bounds (x,y,z)
+geometry.prob_hi     = 15.36231    19.82234  1.0   # Upper bounds (x,y,z)
+geometry.is_periodic =  1          0         0     # Periodic in x
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 0 4 4            # Periodic in x, slip walls in y
+run.hi_bc = 0 4 4
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1              # AMR verbosity level
+run.sum_var = 0              # Index of the conserved variable summed each step (a1rho1)
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# 62 x 160 square cells (dx = delta/4.04) and two levels, so that the
+# finest cells are delta/16.1 across the layer
+# =====================================================================
+amr.n_cell      = 62 160 8   # Base grid resolution (coarsest level)
+amr.max_level   = 2          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2    # Refinement ratio between levels
+amr.n_error_buf = 2          # Buffer around tagged cells for refinement
+
+amr.blocking_factor_x = 2    # Small, so that the base grid can match one wavelength
+amr.blocking_factor_y = 2
+amr.blocking_factor_z = 2
+amr.max_grid_size     = 32   # Maximum grid patch size
+amr.regrid_int        = 1000000   # The refined bands are fixed, so the grids are built once
+amr.Interpolater      = "quartic_interp" # High-order coarse-fine interpolation for the smooth flow
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.4         # CFL number for stability
+run.do_subcycle             = 1           # Subcycle child levels in time
+run.check_cfl               = 0           # Enable/disable CFL safety checks
+run.timestep_change_limiter = 0           # Limit timestep growth/shrink
+run.TimeIntegrator          = "TVD-RK3"   # Time integration scheme
+run.do_reflux               = 1           # Enable refluxing
+
+
+# =====================================================================
+# REFINEMENT CRITERIA
+# No variable criteria: ProblemICBC.H tags the bands |y| < prob.y_ref,
+# which are the same at every x and so do not disturb the base flow
+# =====================================================================
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/KH-M0.4    # Output file prefix
+amr.plot_int         = 1000000           # Plotfiles are written at the times below instead
+amr.t_write          = 45 50 55 60 65 70 75 80 85 90 95 100   # Late linear growth, roll-up and saturation
+run.output_vars      = rho u v P a1 vorticity_mag   # Variables in the plotfiles
+amr.chk_file         = ./checkpoints/chk # Prefix for checkpoint files
+amr.chk_int          = -1                # No checkpoints
+run.user_output_int  = 4                 # Mode amplitude, energy and layer thickness every 4 coarse steps
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.source_term   = 0            # No K div(u) term: both materials are the same gas
+Physics.RiemannSolver = "HLLC"       # Riemann solver type
+
+FiniteVolume.Scheme = "WENO5"        # FV reconstruction scheme
+FiniteVolume.Quad   = 0              # Dimension-by-dimension WENO5 (Quad = 1 is about 9 times slower here)
+FiniteVolume.THINC  = 0              # No THINC: the layer is physically smooth
+FiniteVolume.THINC.Multi        = 1  # With THINC = 1 (the sharp tracer): multi-dimensional face averages
+FiniteVolume.THINC.FaceState    = 1  # Only the THINC side of a face is rebuilt; u and p keep the base scheme
+FiniteVolume.THINC.PhaseDensity = 1  # Phase densities of the cell (use together with FaceState = 1)
+
+PhaseField.phase_field    = 0        # No Phase-Field regularization
+PhaseField.Eta_Multiplier = 0.5      # Not used
+
+
+# =====================================================================
+# MATERIALS AND PROBLEM
+# =====================================================================
+# The same ideal gas on both sides of the layer
+prob.EOS.EOS     = 0
+prob.EOS.gamma_1 = 1.4
+prob.EOS.gamma_2 = 1.4
+prob.EOS.pinf_1  = 0.0
+prob.EOS.pinf_2  = 0.0
+
+prob.Mach   = 0.4            # Blumen's Mach number U/a; the pressure is rho U^2/(gamma M^2)
+prob.U      = 1.0            # Free-stream speed, u = U tanh(y/delta)
+prob.delta  = 1.0            # Half-thickness of the layer
+prob.rho0   = 1.0            # Density of both materials
+prob.eps    = 1.0e-5         # Seeded v = eps U sin(kx x) sech(y/delta), with kx = 2 pi/Lx
+prob.tracer = 1              # alpha_1 = (1 + tanh(y/(w delta)))/2; 0 puts material 1 everywhere
+prob.tracer_width = 1.0      # w, the tanh width of the tracer in units of delta; the tracer is passive,
+                             # so w changes only alpha_1 (w = dx/delta gives a sharp tracer for THINC)
+prob.y_ref  = 8.0 6.0 5.0    # Half-height of the band refined from level 0, 1 and 2; each band must be
+                             # narrower than the one before it, so that the levels nest properly

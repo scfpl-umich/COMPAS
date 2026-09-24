@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-3.0-or-later WITH GPL-3.0-linking-exception
+# Copyright (C) 2026 The Regents of the University of Michigan
+# This file is part of COMPAS, free software under the GNU General Public License,
+# version 3 or later, with an additional permission under section 7. It comes with
+# ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
+
+CEXE_headers += ConservativePhase2FluxPhasePhaseField_Compressible6Eq_PhaseField.H
+CEXE_headers += FluxPhasePhaseField_UD_Compressible6Eq_PhaseField.H
+CEXE_headers += FluxPhasePhaseField_HLL_Compressible6Eq_PhaseField.H
+
+CEXE_headers += FluxPhaseField_Mixture_Compressible6Eq_PhaseField.H
+CEXE_headers += FluxPhasePhaseField2FluxPhaseField_Mixture_Compressible6Eq_PhaseField.H
+CEXE_headers += FluxPhaseField_Compressible6Eq_PhaseField.H
+
+CEXE_headers += PhaseField_RefluxSourceTerms_Compressible6Eq_PhaseField.H
