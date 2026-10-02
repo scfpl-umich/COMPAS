@@ -215,6 +215,14 @@ Riemann_HLLC (TF & Flux_Riemann,
         
         amrex::Real A = EOS_Parameter.A[ik];
         amrex::Real B = EOS_Parameter.B[ik];
+        // NASG: A -> A xi and alpha -> phi = xi alpha, with xi = 1 - b rho (the star states have the
+        // same xi as their side). xi = 1 and phi = alpha exactly when b = 0.
+        amrex::Real AxiL = A*NASG_Xi(AlphaL[ik], Alpha_rhoL[ik], EOS_Parameter.C[ik]);
+        amrex::Real AxiR = A*NASG_Xi(AlphaR[ik], Alpha_rhoR[ik], EOS_Parameter.C[ik]);
+        amrex::Real PhiL = NASG_Xi(AlphaL[ik], Alpha_rhoL[ik], EOS_Parameter.C[ik])*AlphaL[ik];
+        amrex::Real PhiR = NASG_Xi(AlphaR[ik], Alpha_rhoR[ik], EOS_Parameter.C[ik])*AlphaR[ik];
+        amrex::Real PhiL_Star = NASG_Xi(AlphaL_Star[ik], Alpha_rhoL_Star[ik], EOS_Parameter.C[ik])*AlphaL_Star[ik];
+        amrex::Real PhiR_Star = NASG_Xi(AlphaR_Star[ik], Alpha_rhoR_Star[ik], EOS_Parameter.C[ik])*AlphaR_Star[ik];
 
         // Alpha_PsL_Star[ik] = (A*Alpha_PsL[ik] + AlphaL[ik]*B - AlphaL_Star[ik]*B*(Alpha_rhoL[ik]/Alpha_rhoL_Star[ik]) 
         //                     - 0.5*Alpha_PsL[ik]*(Alpha_rhoL[ik]/Alpha_rhoL_Star[ik] - 1.))/(A + 0.5*(Alpha_rhoL[ik]/Alpha_rhoL_Star[ik] -1.));
@@ -222,11 +230,11 @@ Riemann_HLLC (TF & Flux_Riemann,
         // Alpha_PsR_Star[ik] = (A*Alpha_PsR[ik] + AlphaR[ik]*B - AlphaR_Star[ik]*B*(Alpha_rhoR[ik]/Alpha_rhoR_Star[ik]) 
         //                     - 0.5*Alpha_PsR[ik]*(Alpha_rhoR[ik]/Alpha_rhoR_Star[ik] - 1.))/(A + 0.5*(Alpha_rhoR[ik]/Alpha_rhoR_Star[ik] -1.));
 
-        Alpha_PsL_Star[ik] = (A*Alpha_PsL[ik] + AlphaL[ik]*B - AlphaL_Star[ik]*B*(1./XiL) 
-                            - 0.5*Alpha_PsL[ik]*(1./XiL - 1.))/(A + 0.5*(1./XiL -1.));
+        Alpha_PsL_Star[ik] = (AxiL*Alpha_PsL[ik] + PhiL*B - PhiL_Star*B*(1./XiL) 
+                            - 0.5*Alpha_PsL[ik]*(1./XiL - 1.))/(AxiL + 0.5*(1./XiL -1.));
 
-        Alpha_PsR_Star[ik] = (A*Alpha_PsR[ik] + AlphaR[ik]*B - AlphaR_Star[ik]*B*(1./XiR) 
-                            - 0.5*Alpha_PsR[ik]*(1./XiR - 1.))/(A + 0.5*(1./XiR -1.));
+        Alpha_PsR_Star[ik] = (AxiR*Alpha_PsR[ik] + PhiR*B - PhiR_Star*B*(1./XiR) 
+                            - 0.5*Alpha_PsR[ik]*(1./XiR - 1.))/(AxiR + 0.5*(1./XiR -1.));
         
 
         bool PressureBase = true;//Pressure

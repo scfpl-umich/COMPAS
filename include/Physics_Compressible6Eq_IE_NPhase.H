@@ -7,6 +7,7 @@
 #ifndef Physics_Compressible6Eq_IE_NPhase_H_
 #define Physics_Compressible6Eq_IE_NPhase_H_
 
+#include<EquationOfState_NASG.H>
 #include<Variables_Compressible6Eq_IE_NPhase.H>
 #include<Physics_Parameter_Compressible6Eq_IE_NPhase.H>
 
@@ -34,6 +35,7 @@
 
 #include<Conservative2Velocity_Compressible6Eq_IE_NPhase.H>
 #include<Conservative2Temperature_Compressible6Eq_IE_NPhase.H>
+#include<Conservative2PhaseTemperature_Compressible6Eq_IE_NPhase.H>
 #include<Conservative2Pressure_Compressible6Eq_IE_NPhase.H>
 #include<Conservative2EnergyBound_Compressible6Eq_IE_NPhase.H>
 #include<FluxDiffusion_Compressible6Eq_IE_NPhase.H>

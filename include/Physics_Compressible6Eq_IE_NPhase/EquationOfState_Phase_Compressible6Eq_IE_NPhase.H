@@ -27,11 +27,16 @@ void EquationOfState_Phase(amrex::Real& Output,
     amrex::Real EOS_BP;
     amrex::Real EOS_BT;
 
+    // NASG: alpha rho e = A xi (alpha p) + phi B + alpha rho q, with xi = 1 - b rho and phi = xi alpha
+    // (xi = 1 and phi = alpha exactly when b = 0)
+    amrex::Real Xi  = NASG_Xi(Alpha, Alpha_rho, EOS_Parameter.C[ID_Phase]);
+    amrex::Real Phi = Xi*Alpha;
+
     EOS_AP = EOS_Parameter.A[ID_Phase];
     EOS_D = EOS_Parameter.D[ID_Phase];
     EOS_CT = EOS_Parameter.cv[ID_Phase];
-    EOS_BP = Alpha*EOS_Parameter.B[ID_Phase];
-    EOS_BT = Alpha*EOS_Parameter.B[ID_Phase]/(1.0 + EOS_Parameter.A[ID_Phase]);
+    EOS_BP = Phi*EOS_Parameter.B[ID_Phase];
+    EOS_BT = Phi*EOS_Parameter.B[ID_Phase]/(1.0 + EOS_Parameter.A[ID_Phase]);
 
     amrex::Real Alpha_rho_D = Alpha_rho*EOS_D;
 
@@ -46,13 +51,13 @@ void EquationOfState_Phase(amrex::Real& Output,
         
         //From Pressure to Internal Energy
         if (OutputInternalEnergy){
-            Output = EOS_AP*Input + BP + Alpha_rho_D; // Input is alpha_P
+            Output = EOS_AP*Xi*Input + BP + Alpha_rho_D; // Input is alpha_P
 
         }
         //From Internal Energy to Pressure
         else {
             
-            Output = (Input - Alpha_rho_D - BP)/EOS_AP; // Input is alpha_rho_e_h
+            Output = (Input - Alpha_rho_D - BP)/(EOS_AP*Xi); // Input is alpha_rho_e_h
 
         }
     }

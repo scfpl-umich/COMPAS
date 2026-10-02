@@ -32,6 +32,11 @@
 #include<FVM_Reconstruction2Face_Conservative_THINC_K_Compressible6Eq.H>
 #include<FVM_Conservative2FluxHyperbolic_K_Compressible6Eq.H>
 
+#include<Conservative2Viscosity_Compressible6Eq.H>
+#include<FDM_Conservative2FluxDiffusion_D_Compressible6Eq.H>
+#include<FDM_Conservative2FluxDiffusion_K_Compressible6Eq.H>
+#include<FDM_Conservative2ViscousDissipation_K_Compressible6Eq.H>
+
 #include<FVM_SurfaceIntegralNC_Compressible6Eq.H>
 
 #endif

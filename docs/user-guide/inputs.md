@@ -75,7 +75,7 @@ for this reason: WENO5 with `lincc_interp` needs a margin of 3, and a blocking f
 | `run.TimeIntegrator` | `ForwardEuler`, `TVD-RK2`, **`TVD-RK3`**, `RK4` |
 | `run.do_subcycle` | **`1`**: each finer level takes smaller steps, by its refinement ratio. `0`: all levels take the same step |
 | `run.do_reflux` | **`1`**: correct the coarse fluxes at coarse–fine boundaries so the update is conservative. `0`: off |
-| `run.vnn` | stability number of the viscous and conductive fluxes, $\Delta t =$ `vnn` $\Delta x^2/$(largest diffusivity) (**`0.25`**). Used with `-DDIFFUSION=true` |
+| `run.vnn` | stability number of the viscous and conductive fluxes, $\Delta t =$ `vnn` $\Delta x^2/$(largest diffusivity) (**`0.25`**). Used with `-DDIFFUSION=true`. In the six-equation models the diffusivity is the larger of the momentum and thermal diffusivities of each face ([six-equation fluxes](models.md#viscous-and-conductive-fluxes-in-the-six-equation-models)); in the five-equation models it is $\mu + (\mu_B - \tfrac23\mu) + \kappa$, not divided by $\rho$ or $\rho c_v$ |
 | `run.cfl_fast`, `run.cfl_switch` | after `cfl_switch` coarse steps (default `10`) the CFL number becomes `cfl_fast` (default `run.cfl`) |
 | `run.timestep_change_limiter` | **`1`**: the time step grows by at most 10% per step. `0`: off |
 | `run.check_cfl` | **`1`**: stop if the largest wave speed times the time step exceeds a cell size. `0`: off. CPU builds only |
@@ -300,15 +300,17 @@ takes precedence over both.
 
 | Parameter | Values |
 |---|---|
-| `prob.EOS.EOS` | `0` ideal gas, `1` stiffened gas, `2` Mie–Grüneisen (default set in each case's `Parm.H`) |
+| `prob.EOS.EOS` | `0` ideal gas, `1` stiffened gas, `2` Mie–Grüneisen, `3` Noble-Abel stiffened gas (default set in each case's `Parm.H`) |
 
 The two-phase models, `FIVEEQS` and `SIXEQS`, read one value per phase with the suffixes `_1`
 and `_2`:
 
 | Parameter | Symbol | Used by | Default |
 |---|---|---|---|
-| `prob.EOS.gamma_1`, `prob.EOS.gamma_2` | $\gamma_k$, must be greater than 1 | EOS `0` and `1` | none, must be given |
-| `prob.EOS.pinf_1`, `prob.EOS.pinf_2` | $P_{\infty,k}$ | EOS `1` | `0.0` |
+| `prob.EOS.gamma_1`, `prob.EOS.gamma_2` | $\gamma_k$, must be greater than 1 | EOS `0`, `1` and `3` | none, must be given |
+| `prob.EOS.pinf_1`, `prob.EOS.pinf_2` | $P_{\infty,k}$ | EOS `1` and `3` | `0.0` |
+| `prob.EOS.b_1`, `prob.EOS.b_2` | $b_k$, covolume, must be 0 or positive | EOS `3` | `0.0` |
+| `prob.EOS.q_1`, `prob.EOS.q_2` | $q_k$, heat of formation | EOS `3` | `0.0` |
 | `prob.EOS.gGamma_1`, `prob.EOS.gGamma_2` | $\Gamma_k$, must be positive | EOS `2` | `0.0` |
 | `prob.EOS.pref_1`, `prob.EOS.pref_2` | $p_{\mathrm{ref},k}$ | EOS `2` | `0.0` |
 | `prob.EOS.eref_1`, `prob.EOS.eref_2` | $e_{\mathrm{ref},k}$ | EOS `2` | `0.0` |
@@ -319,14 +321,22 @@ and `_2`:
 
 The N-phase models, `FIVEEQS_NPHASE` and `SIXEQS_IE_NPHASE`, read lists with one value per
 phase, for example `prob.EOS.gamma = 1.4 1.6 4.4`. The names are `prob.EOS.gamma`, `pinf`,
-`gGamma`, `pref`, `eref`, `cv`, `mu`, `muB` and `kappa`. A list that is given must have exactly
-`NPHASE` values. A list that is not given is zero, including `cv`, so give `cv` whenever the
-temperature is used.
+`gGamma`, `pref`, `eref`, `b`, `q`, `cv`, `mu`, `muB` and `kappa`. A list that is given must have
+exactly `NPHASE` values. A list that is not given is zero, including `cv`, so give `cv` whenever
+the temperature is used.
+
+The covolume and the heat of formation (`b_1`, `b_2`, `q_1`, `q_2`, or the lists `b` and `q`)
+are read only with EOS `3`. Give them in the units of the case: a case that divides the pressure
+scales in its `Parm.H` needs $b$ and $q$ scaled to match. Liquid water, for example, has
+$\gamma = 1.19$, $P_\infty = 7.028\times10^{8}$ Pa, $b = 6.61\times10^{-4}$ m³/kg,
+$q = -1\,177\,788$ J/kg and $c_v = 3610$ J/(kg K) between 300 and 500 K (Le Métayer and Saurel
+2016). With EOS `3`, `FiniteVolume.Quad = 1` is not available: its characteristic decomposition
+assumes a stiffened gas.
 
 At startup the run checks that each per-phase list has `NPHASE` values, that each $\gamma_k$ is
-greater than 1 with EOS `0` or `1`, and that each $c_{v,k}$ is positive where the solver needs the
-temperature: with `-DDIFFUSION=true`, and in `SIXEQS` with
-`Physics.pressure_temperature_relaxation = 1`. Its message names the parameter.
+greater than 1 with EOS `0`, `1` or `3`, that each $b_k$ is 0 or positive with EOS `3`, and that
+each $c_{v,k}$ is positive where the solver needs the temperature: with `-DDIFFUSION=true`, and in
+`SIXEQS` with `Physics.pressure_temperature_relaxation = 1`. Its message names the parameter.
 
 Every other `prob.*` parameter belongs to the case and is read by its `Parm.H`
 ([Parm.H](cases.md#parmh)).

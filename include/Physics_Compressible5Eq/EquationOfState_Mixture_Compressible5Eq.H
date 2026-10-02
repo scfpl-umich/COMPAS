@@ -22,6 +22,10 @@ void EquationOfState_Mixture(amrex::Real& Output,
                              bool OutputInternalEnergy)
 {
     amrex::Real Alpha2 = 1.0 - Alpha1;
+    // NASG: phi_k = alpha_k - b_k alpha_k rho_k replaces alpha_k where it multiplies A_k or B_k
+    // (phi_k = alpha_k exactly for the other EOS, b_k = 0)
+    amrex::Real Phi1 = NASG_Phi(Alpha1, Alpha1_rho1, EOS_Parameter.C1);
+    amrex::Real Phi2 = NASG_Phi(Alpha2, Alpha2_rho2, EOS_Parameter.C2);
 
     amrex::Real EOS_D1 = EOS_Parameter.D1;
     amrex::Real EOS_D2 = EOS_Parameter.D2;
@@ -32,13 +36,13 @@ void EquationOfState_Mixture(amrex::Real& Output,
     if (PressureBase){
         amrex::Real EOS_AP1 = EOS_Parameter.A1;
         amrex::Real EOS_AP2 = EOS_Parameter.A2;
-        amrex::Real AP = Alpha1*EOS_AP1
-                        +Alpha2*EOS_AP2;
+        amrex::Real AP = Phi1*EOS_AP1
+                        +Phi2*EOS_AP2;
         
         amrex::Real EOS_BP1 = EOS_Parameter.B1;
         amrex::Real EOS_BP2 = EOS_Parameter.B2;
-        amrex::Real BP = Alpha1*EOS_BP1
-                        +Alpha2*EOS_BP2;
+        amrex::Real BP = Phi1*EOS_BP1
+                        +Phi2*EOS_BP2;
         
         //From Pressure to Internal Energy
         if (OutputInternalEnergy){
@@ -58,8 +62,8 @@ void EquationOfState_Mixture(amrex::Real& Output,
         
         amrex::Real EOS_BT1 = EOS_Parameter.B1/(1.0 + EOS_Parameter.A1);
         amrex::Real EOS_BT2 = EOS_Parameter.B2/(1.0 + EOS_Parameter.A2);
-        amrex::Real BT = Alpha1*EOS_BT1
-                        +Alpha2*EOS_BT2;
+        amrex::Real BT = Phi1*EOS_BT1
+                        +Phi2*EOS_BT2;
         
         //From Temperature to Internal Energy
         if (OutputInternalEnergy){

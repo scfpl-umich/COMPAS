@@ -2015,13 +2015,11 @@ COMPAS::timeStepWithSubcycling (Vector<MultiFab>& mf_new,
                         last_regrid_step[k] = istep[k];
                     }
 
-                    // if there are newly created levels, set the time step
+                    // if there are newly created levels, set the time step. A level takes nsubsteps[k]
+                    // steps per step of level k-1 (as in ComputeDt), so dt[k] = dt[k-1]/nsubsteps[k]
+                    // brings it to the end time of level k-1 (a smaller dt would leave it behind)
                     for (int k = old_finest+1; k <= finest_level; ++k) {
-#if (ADVECTION == true && DIFFUSION == true)
-                        dt[k] = dt[k-1] / (MaxRefRatio(k-1)*MaxRefRatio(k-1));
-#else
-                        dt[k] = dt[k-1] / MaxRefRatio(k-1);
-#endif
+                        dt[k] = dt[k-1] / nsubsteps[k];
                     }
                 }
             }

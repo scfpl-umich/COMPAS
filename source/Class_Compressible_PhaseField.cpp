@@ -2731,7 +2731,7 @@ Compressible_PhaseField::PhaseField_ThirdOrderSSPRK (Vector<MultiFab>& mf_new,
                                Uborder,
                                Grad_Q[lev],
                                lev,
-                               Real(0.166666666667)*dt_lev,
+                               (Real(1.0)/Real(6.0))*dt_lev,
                                ncycle,
                                stage,
                                fr_as_crse,
@@ -2755,7 +2755,7 @@ Compressible_PhaseField::PhaseField_ThirdOrderSSPRK (Vector<MultiFab>& mf_new,
                                Uborder,
                                Grad_Q[lev],
                                lev,
-                               Real(0.166666666667)*dt_lev,
+                               (Real(1.0)/Real(6.0))*dt_lev,
                                ncycle,
                                stage,
                                fr_as_crse,
@@ -2781,15 +2781,15 @@ Compressible_PhaseField::PhaseField_ThirdOrderSSPRK (Vector<MultiFab>& mf_new,
                                Uborder,
                                Grad_Q[lev],
                                lev,
-                               Real(0.666666666667)*dt_lev,
+                               (Real(2.0)/Real(3.0))*dt_lev,
                                ncycle,
                                stage,
                                fr_as_crse,
                                fr_as_fine,
                                fr_as_crse_nc,
                                fr_as_fine_nc);
-    MultiFab::LinComb(U_new, Real(0.666666666667), Uborder, 0, Real(0.333333333333), U_old, 0, 0, NSTATE, 0);
-    MultiFab::Saxpy(U_new, Real(0.666666666667)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::LinComb(U_new, (Real(2.0)/Real(3.0)), Uborder, 0, (Real(1.0)/Real(3.0)), U_old, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(2.0)/Real(3.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     PhaseField_PostTimeStage(U_new,ncycle,time+dt_lev,lev);
     PhaseField_PostTimeStep(U_new,ncycle,time+dt_lev,lev);
@@ -2872,7 +2872,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
                                Uborder,
                                Grad_Q[lev], 
                                lev, 
-                               Real(0.166666666667)*dt_lev, 
+                               (Real(1.0)/Real(6.0))*dt_lev, 
                                ncycle, 
                                stage, 
                                fr_as_crse, 
@@ -2882,7 +2882,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
     /* u_1 = u_n + 1/2 dt R(u_n) */
     MultiFab::LinComb(U_temp, Real(1.0), Uborder, 0, Real(0.5)*dt_lev,            dUdt, 0, 0, NSTATE, 0);
     /* u_* = u_n + 1/6 dt R(u_n) */
-    MultiFab::LinComb(U_new,  Real(1.0), Uborder, 0, Real(0.166666666667)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::LinComb(U_new,  Real(1.0), Uborder, 0, (Real(1.0)/Real(6.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     PhaseField_PostTimeStage(U_temp,ncycle,time+Real(0.5)*dt_lev,lev);
 
@@ -2902,7 +2902,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
                                Uborder,
                                Grad_Q[lev], 
                                lev, 
-                               Real(0.333333333333)*dt_lev, 
+                               (Real(1.0)/Real(3.0))*dt_lev, 
                                ncycle, 
                                stage, 
                                fr_as_crse, 
@@ -2912,7 +2912,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
     /* u_2 = u_n + 1/2 dt R(u_1) */
     MultiFab::LinComb(U_temp, Real(1.0), U_old, 0, Real(0.5)*dt_lev, dUdt, 0, 0, NSTATE, 0);
     /* u_** = u_* + 1/3 dt R(u_1) */
-    MultiFab::Saxpy(U_new, Real(0.333333333333)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(1.0)/Real(3.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     PhaseField_PostTimeStage(U_temp,ncycle,time+Real(0.5)*dt_lev,lev);
 
@@ -2932,7 +2932,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
                                Uborder,
                                Grad_Q[lev], 
                                lev, 
-                               Real(0.333333333333)*dt_lev, 
+                               (Real(1.0)/Real(3.0))*dt_lev, 
                                ncycle, 
                                stage, 
                                fr_as_crse, 
@@ -2942,7 +2942,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
     /* u_3 = u_n + dt R(u_2) */
     MultiFab::LinComb(U_temp, Real(1.0), U_old, 0, Real(1.0)*dt_lev, dUdt, 0, 0, NSTATE, 0);
     /* u_*** = u_** + 1/3 dt R(u_2) */
-    MultiFab::Saxpy(U_new, Real(0.333333333333)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(1.0)/Real(3.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     PhaseField_PostTimeStage(U_temp,ncycle,time+dt_lev,lev);
 
@@ -2962,7 +2962,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
                                Uborder,
                                Grad_Q[lev], 
                                lev, 
-                               Real(0.166666666667)*dt_lev, 
+                               (Real(1.0)/Real(6.0))*dt_lev, 
                                ncycle, 
                                stage, 
                                fr_as_crse, 
@@ -2970,7 +2970,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
                                fr_as_crse_nc, 
                                fr_as_fine_nc);
     /* u_n+1 = u_*** + 1/6 dt R(u_3) */
-    MultiFab::Saxpy(U_new, Real(0.166666666667)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(1.0)/Real(6.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     PhaseField_PostTimeStage(U_new,ncycle,time+dt_lev,lev);
     PhaseField_PostTimeStep(U_new,ncycle,time+dt_lev,lev);
@@ -3281,6 +3281,17 @@ BL_PROFILE("compute_dUdt_FV()");
                     Array<Real,NSTATE> fhatD;
                     amrex::Real dmax;
 {BL_PROFILE("compute_dUdt_FV::{ computing the idim-direction parabolic fluxes }");
+#if (PHYSICS == SIXEQS)
+                    // SIXEQS also writes the viscous energy flux to a non-conservative component
+                    FDM_Conservative2FluxDiffusion_K(i, j, k,
+                                                     fhatD, fhatNC, dmax,
+                                                     statein,
+                                                     prob_lo,
+                                        AMREX_D_DECL(dx,dy,dz),
+                                                     time,
+                                                     *lparm,
+                                                     idim);
+#else
                     FDM_Conservative2FluxDiffusion_K(i, j, k,
                                                      fhatD, dmax,
                                                      statein,
@@ -3289,6 +3300,7 @@ BL_PROFILE("compute_dUdt_FV()");
                                                      time,
                                                      *lparm,
                                                      idim);
+#endif
 }
                     c_max_new(i,j,k,1) = std::max(dmax, c_max_new(i,j,k,1));
 #endif
@@ -3954,7 +3966,7 @@ Compressible_PhaseField::ThirdOrderSSPRK (Vector<MultiFab>& mf_new,
     PreTimeStep(Uborder,ncycle,time,lev);
 
 
-    compute_dUdt_FV(dUdt,Uborder,lev, time, Real(0.166666666667)*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
+    compute_dUdt_FV(dUdt,Uborder,lev, time, (Real(1.0)/Real(6.0))*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
     
     MultiFab::LinComb(U_new, Real(1.0), Uborder, 0, dt_lev, dUdt, 0, 0, NSTATE, 0);
 
@@ -3988,7 +4000,7 @@ Compressible_PhaseField::ThirdOrderSSPRK (Vector<MultiFab>& mf_new,
               0, 0, NSTATE);
 
 
-    compute_dUdt_FV(dUdt,Uborder,lev, time+dt_lev, Real(0.166666666667)*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
+    compute_dUdt_FV(dUdt,Uborder,lev, time+dt_lev, (Real(1.0)/Real(6.0))*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
 
     MultiFab::LinComb(U_new, Real(0.25), Uborder, 0, Real(0.75), U_old, 0, 0, NSTATE, 0);
     MultiFab::Saxpy(U_new, Real(0.25)*dt_lev, dUdt, 0, 0, NSTATE, 0);
@@ -4025,10 +4037,10 @@ Compressible_PhaseField::ThirdOrderSSPRK (Vector<MultiFab>& mf_new,
                    0, 0, NSTATE);
 
 
-    compute_dUdt_FV(dUdt,Uborder,lev, time+Real(0.5)*dt_lev, Real(0.666666666667)*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
+    compute_dUdt_FV(dUdt,Uborder,lev, time+Real(0.5)*dt_lev, (Real(2.0)/Real(3.0))*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
     
-    MultiFab::LinComb(U_new, Real(0.666666666667), Uborder, 0, Real(0.333333333333), U_old, 0, 0, NSTATE, 0);
-    MultiFab::Saxpy(U_new, Real(0.666666666667)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::LinComb(U_new, (Real(2.0)/Real(3.0)), Uborder, 0, (Real(1.0)/Real(3.0)), U_old, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(2.0)/Real(3.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     if (h_parm->FiniteVolume_Parm.ID_Bound == 1){
         MinEnergyBound(min_EnergyBound,
@@ -4126,12 +4138,12 @@ Compressible_PhaseField::FourthOrderRK (Vector<MultiFab>& mf_new,
 
     PreTimeStep(Uborder,ncycle,time,lev);
 
-    compute_dUdt_FV(dUdt,Uborder,lev, time, Real(0.166666666667)*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
+    compute_dUdt_FV(dUdt,Uborder,lev, time, (Real(1.0)/Real(6.0))*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
 
     /* u_1 = u_n + 1/2 dt R(u_n) */
     MultiFab::LinComb(U_temp, Real(1.0), Uborder, 0, Real(0.5)*dt_lev, 			  dUdt, 0, 0, NSTATE, 0);
     /* u_* = u_n + 1/6 dt R(u_n) */
-    MultiFab::LinComb(U_new,  Real(1.0), Uborder, 0, Real(0.166666666667)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::LinComb(U_new,  Real(1.0), Uborder, 0, (Real(1.0)/Real(6.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     if (h_parm->FiniteVolume_Parm.ID_Bound == 1){
         MinEnergyBound(min_EnergyBound,
@@ -4166,12 +4178,12 @@ Compressible_PhaseField::FourthOrderRK (Vector<MultiFab>& mf_new,
                    mf_old, t_old,
                    0, 0, NSTATE);
 
-    compute_dUdt_FV(dUdt,Uborder,lev, time+Real(0.5)*dt_lev, Real(0.333333333333)*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
+    compute_dUdt_FV(dUdt,Uborder,lev, time+Real(0.5)*dt_lev, (Real(1.0)/Real(3.0))*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
 
     /* u_2 = u_n + 1/2 dt R(u_1) */
     MultiFab::LinComb(U_temp, Real(1.0), U_old, 0, Real(0.5)*dt_lev, dUdt, 0, 0, NSTATE, 0);
     /* u_** = u_* + 1/3 dt R(u_1) */
-    MultiFab::Saxpy(U_new, Real(0.333333333333)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(1.0)/Real(3.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     if (h_parm->FiniteVolume_Parm.ID_Bound == 1){
         MinEnergyBound(min_EnergyBound,
@@ -4206,12 +4218,12 @@ Compressible_PhaseField::FourthOrderRK (Vector<MultiFab>& mf_new,
                    mf_old, t_old,
                    0, 0, NSTATE);
 
-    compute_dUdt_FV(dUdt,Uborder,lev, time+Real(0.5)*dt_lev, Real(0.333333333333)*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
+    compute_dUdt_FV(dUdt,Uborder,lev, time+Real(0.5)*dt_lev, (Real(1.0)/Real(3.0))*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
 
     /* u_3 = u_n + dt R(u_2) */
     MultiFab::LinComb(U_temp, Real(1.0), U_old, 0, Real(1.0)*dt_lev, dUdt, 0, 0, NSTATE, 0);
     /* u_*** = u_** + 1/3 dt R(u_2) */
-    MultiFab::Saxpy(U_new, Real(0.333333333333)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(1.0)/Real(3.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     if (h_parm->FiniteVolume_Parm.ID_Bound == 1){
         MinEnergyBound(min_EnergyBound,
@@ -4246,10 +4258,10 @@ Compressible_PhaseField::FourthOrderRK (Vector<MultiFab>& mf_new,
                    mf_old, t_old,
                    0, 0, NSTATE);
 
-    compute_dUdt_FV(dUdt,Uborder,lev, time+dt_lev, Real(0.166666666667)*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
+    compute_dUdt_FV(dUdt,Uborder,lev, time+dt_lev, (Real(1.0)/Real(6.0))*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
 
     /* u_n+1 = u_*** + 1/6 dt R(u_3) */
-    MultiFab::Saxpy(U_new, Real(0.166666666667)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(1.0)/Real(6.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     if (h_parm->FiniteVolume_Parm.ID_Bound == 1){
         MinEnergyBound(min_EnergyBound,
@@ -4338,13 +4350,11 @@ Compressible_PhaseField::timeStepWithSubcycling (Vector<MultiFab>& mf_new,
                         last_regrid_step[k] = istep[k];
                     }
 
-                    // if there are newly created levels, set the time step
+                    // if there are newly created levels, set the time step. A level takes nsubsteps[k]
+                    // steps per step of level k-1 (as in ComputeDt), so dt[k] = dt[k-1]/nsubsteps[k]
+                    // brings it to the end time of level k-1 (a smaller dt would leave it behind)
                     for (int k = old_finest+1; k <= finest_level; ++k) {
-#if (ADVECTION == true && DIFFUSION == true)
-                        dt[k] = dt[k-1] / (MaxRefRatio(k-1)*MaxRefRatio(k-1));
-#else
-                        dt[k] = dt[k-1] / MaxRefRatio(k-1);
-#endif
+                        dt[k] = dt[k-1] / nsubsteps[k];
                     }
                 }
             }
@@ -4516,6 +4526,16 @@ Compressible_PhaseField::CalculateInitialcmax (int lev)
                     Array<Real,NSTATE> fhatD;
                     amrex::Real dmax;
 {BL_PROFILE("compute_dUdt_FV::{ computing the idim-direction parabolic fluxes }");
+#if (PHYSICS == SIXEQS)
+                    FDM_Conservative2FluxDiffusion_K(i, j, k,
+                                                     fhatD, fhatNC, dmax,
+                                                     statein,
+                                                     prob_lo,
+                                        AMREX_D_DECL(dx,dy,dz),
+                                                     time,
+                                                     *lparm,
+                                                     idim);
+#else
                     FDM_Conservative2FluxDiffusion_K(i, j, k,
                                                      fhatD, dmax,
                                                      statein,
@@ -4524,6 +4544,7 @@ Compressible_PhaseField::CalculateInitialcmax (int lev)
                                                      time,
                                                      *lparm,
                                                      idim);
+#endif
 }
                     c_max_new(i,j,k,1) = std::max(dmax, c_max_new(i,j,k,1));
 #endif

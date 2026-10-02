@@ -37,6 +37,7 @@ void Conservative2A(amrex::Real& A,
     NonConservative(K,
                     p,
                     Alpha,
+                    Alpha_rho,
                     EOS_Parameter,
                     ID_K);
     
@@ -48,7 +49,9 @@ void Conservative2A(amrex::Real& A,
         EOS_APi = EOS_Parameter.A[i_Phase];
         EOS_BPi = EOS_Parameter.B[i_Phase];
         p_mini  = EOS_Parameter.p_min[i_Phase];
-        A += Alpha[i_Phase]*(1.0 + K[i_Phase])*( (EOS_APi + 1.0)*p_mini + EOS_BPi );
+        // Kapila coefficient alpha_k (1 + K_k): phi_k (1 + K_k) for NASG when K is on (see NonConservative)
+        amrex::Real Phi = (ID_K == 1) ? NASG_Phi(Alpha[i_Phase], Alpha_rho[i_Phase], EOS_Parameter.C[i_Phase]) : Alpha[i_Phase];
+        A += Phi*(1.0 + K[i_Phase])*( (EOS_APi + 1.0)*p_mini + EOS_BPi );
     }
     
 }

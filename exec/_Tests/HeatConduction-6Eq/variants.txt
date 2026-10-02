@@ -1,0 +1,11 @@
+# Run-time variants of this case, run by scripts/test_cases.sh with the same executable.
+# Each line is a name followed by ParmParse overrides appended to "<exe> prob/inputs".
+# The base inputs use the two-phase six-equation model with DIFFUSION = true, each phase on
+# one side of the contact and pressure-temperature relaxation.
+
+# --- A uniform mixture of the two phases, with each relaxation ---
+mixture                 max_step=20 prob.layout=1
+mixture-relax-p         max_step=20 prob.layout=1 Physics.pressure_temperature_relaxation=0 Physics.pressure_relaxation=1
+
+# --- One AMR level at the contact ---
+amr                     max_step=20 amr.max_level=1

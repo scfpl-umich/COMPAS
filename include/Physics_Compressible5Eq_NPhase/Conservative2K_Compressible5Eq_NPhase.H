@@ -36,6 +36,7 @@ void Conservative2K(amrex::Array<amrex::Real,NPHASE>& K,
     NonConservative(K,
                     p,
                     Alpha,
+                    Alpha_rho,
                     EOS_Parameter,
                     ID_K);
     

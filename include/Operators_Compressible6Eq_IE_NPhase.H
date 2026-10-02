@@ -25,6 +25,7 @@
 #include<FDM_FluxDiffusion_D_Compressible6Eq_IE_NPhase.H>
 #include<FDM_Conservative2FluxDiffusion_D_Compressible6Eq_IE_NPhase.H>
 #include<FDM_Conservative2FluxDiffusion_K_Compressible6Eq_IE_NPhase.H>
+#include<FDM_Conservative2ViscousDissipation_K_Compressible6Eq_IE_NPhase.H>
 
 #include<FVM_Reconstruction2Face_LimiterConsistent_Compressible6Eq_IE_NPhase.H>
 #include<FVM_Reconstruction2Face_Conservative_LimiterConsistent_Compressible6Eq_IE_NPhase.H>

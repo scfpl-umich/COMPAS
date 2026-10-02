@@ -48,6 +48,9 @@ Reconstruct_State_From_VolumeFraction (amrex::Array<amrex::Real,4+AMREX_SPACEDIM
     amrex::Real K = 0.5 * (AMREX_D_TERM(u*u, + v*v, + w*w));
     amrex::Real rho1_e1 = EOS_Parameter.A1 * p + EOS_Parameter.B1 + rho1 * EOS_Parameter.D1;
     amrex::Real rho2_e2 = EOS_Parameter.A2 * p + EOS_Parameter.B2 + rho2 * EOS_Parameter.D2;
+    // NASG: rho_k e_k = (1 - b_k rho_k)(A_k p + B_k) + rho_k q_k
+    if (EOS_Parameter.C1 > 0.0){ rho1_e1 = NASG_Xi_rho(rho1, EOS_Parameter.C1) * (EOS_Parameter.A1 * p + EOS_Parameter.B1) + rho1 * EOS_Parameter.D1; }
+    if (EOS_Parameter.C2 > 0.0){ rho2_e2 = NASG_Xi_rho(rho2, EOS_Parameter.C2) * (EOS_Parameter.A2 * p + EOS_Parameter.B2) + rho2 * EOS_Parameter.D2; }
 
     Conservative_Reconstructed[INDEX_Mass1] = Alpha1_rho1_Recon;
     Conservative_Reconstructed[INDEX_Mass2] = Alpha2_rho2_Recon;

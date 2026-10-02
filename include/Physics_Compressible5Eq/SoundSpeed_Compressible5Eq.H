@@ -38,6 +38,8 @@ void SoundSpeed(amrex::Real& c,
                    rho1_c12,
                    rho2_c22,
                    Alpha1,
+                   Alpha1_rho1,
+                   Alpha2_rho2,
                    EOS_Parameter,
                    ID_K);
     

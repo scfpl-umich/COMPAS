@@ -34,6 +34,7 @@ void SoundSpeed(amrex::Real& c,
     rho_c2_Mixture(rho_c2,
                    rhop_cp2,
                    Alpha,
+                   Alpha_rho,
                    EOS_Parameter,
                    ID_K);
     

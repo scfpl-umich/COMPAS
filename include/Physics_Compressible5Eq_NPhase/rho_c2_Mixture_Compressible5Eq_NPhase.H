@@ -15,16 +15,21 @@ AMREX_FORCE_INLINE
 void rho_c2_Mixture(amrex::Real& rho_c2,
                     amrex::Array<amrex::Real,NPHASE> const& rhop_cp2,
                     amrex::Array<amrex::Real,NPHASE> const& Alpha,
+                    amrex::Array<amrex::Real,NPHASE> const& Alpha_rho,
                     Parm const& EOS_Parameter,
                     int ID_K)
 {
+    // rhop_cp2[k] is gamma_k (p + pinf_k) = (1 - b_k rho_k) rho_k c_k^2 (rho_c2_Phase).
+    // NASG: phi_k = alpha_k - b_k alpha_k rho_k (alpha_k when b_k = 0) in the A sum (K = 0) and
+    // in Wood's sum, sum alpha_k/(rho_k c_k^2) = sum phi_k/(gamma_k (p + pinf_k))
     //K_p = 0
     if (ID_K == 0){
         amrex::Real AP_rho_c2 = 0.0;
         amrex::Real AP = 0.0;
         for (int i_Phase = 0; i_Phase < NPHASE; i_Phase++){
+            amrex::Real Phi = NASG_Phi(Alpha[i_Phase], Alpha_rho[i_Phase], EOS_Parameter.C[i_Phase]);
             AP_rho_c2 += Alpha[i_Phase]*EOS_Parameter.A[i_Phase]*rhop_cp2[i_Phase];
-            AP        += Alpha[i_Phase]*EOS_Parameter.A[i_Phase];
+            AP        += Phi*EOS_Parameter.A[i_Phase];
         }
         
         rho_c2 = AP_rho_c2/AP;
@@ -33,7 +38,8 @@ void rho_c2_Mixture(amrex::Real& rho_c2,
     else if (ID_K == 1){
         amrex::Real rho_c2_Inverse = 0.0;
         for (int i_Phase = 0; i_Phase < NPHASE; i_Phase++){
-            rho_c2_Inverse += Alpha[i_Phase]/rhop_cp2[i_Phase];
+            amrex::Real Phi = NASG_Phi(Alpha[i_Phase], Alpha_rho[i_Phase], EOS_Parameter.C[i_Phase]);
+            rho_c2_Inverse += Phi/rhop_cp2[i_Phase];
         }
         rho_c2 = 1.0/rho_c2_Inverse;
     }

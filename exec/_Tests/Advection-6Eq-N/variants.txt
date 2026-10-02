@@ -30,3 +30,9 @@ pf-cac-adv              max_step=2  PhaseField.Mechanism=CAC-Adv PhaseField.ID_E
 pf-cdi-implicit         max_step=5  PhaseField.Mechanism=CDI PhaseField.ID_ExplicitRC=0
 pf-cdi-explicit         max_step=10 PhaseField.Mechanism=CDI PhaseField.ID_ExplicitRC=1
 pf-ch-adv               max_step=3  PhaseField.Mechanism=CH-Adv PhaseField.ID_ExplicitRC=0
+
+# --- NASG (prob.EOS.EOS = 3) with b = q = 0: the final plotfile of each eos-nasg-b0* variant must be
+# identical, bit for bit, to that of its stiffened-gas partner (the base inputs, or the variant named
+# after eos-nasg-b0-). The NASG tests with b > 0 are in the NASG-* cases. ---
+eos-nasg-b0             max_step=10 prob.EOS.EOS=3
+eos-nasg-b0-thinc       max_step=10 FiniteVolume.THINC=1 prob.EOS.EOS=3

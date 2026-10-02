@@ -1,0 +1,32 @@
+# Run-time variants of this case, run by scripts/test_cases.sh with the same executable.
+# The base inputs are the air-water shock tube with NASG liquid water (Le Metayer and Saurel 2016).
+# water    the single-phase NASG water shock tube: rho = 1150 kg/m^3, P = 1e9 Pa for x < 0.5 and
+#          rho = 1050 kg/m^3, P = 1e5 Pa to the right, to t = 1.2e-4 s.
+# water-air  liquid water (NASG) at rho = 1150 kg/m^3, P = 1e9 Pa for x < 0.7 expanding into air at
+#          rho = 50 kg/m^3, P = 1e5 Pa, to t = 2e-4 s (five-equation models only: the six-equation
+#          models give negative mixture pressures at the interface in this expansion).
+# sg       the base tube with the stiffened gas (EOS = 1) and the same gamma and pinf.
+# nasg-b0  the base tube with NASG and b = q = 0. Its final plotfile must be identical, bit for
+#          bit, to that of sg (likewise for the other *-b0 variants and their sg-* partners).
+# drop     prob.problem = 1: a water disk of radius 0.4 in air in the periodic box [-1,1]^2, both
+#          at 1e5 Pa and 300 K, moving with (50, 50) m/s. The pressure and velocity errors dP and du
+#          of drop.csv stay at round-off. drop-sg is the same drop with the stiffened gas (EOS = 1).
+# source-term-0, bound, thinc, weno5 and the drop-* variants: K = 0, the bound-preserving limiter,
+# THINC, WENO5 and Phase-Field (ACDI) with NASG.
+
+water          max_step=20 stop_time=1.2e-4 prob.rho_L=1150 prob.mat_L=1 prob.x_diaphragm=0.5
+water-air      max_step=20 stop_time=2.0e-4 prob.rho_L=1150 prob.mat_L=1 prob.rho_R=50 prob.mat_R=2
+sg             max_step=20 prob.EOS.EOS=1
+nasg-b0        max_step=20 prob.EOS.b_1=0 prob.EOS.q_1=0
+source-term-0  max_step=20 Physics.source_term=0
+bound          max_step=20 FiniteVolume.ID_Bound=1
+sg-bound       max_step=20 FiniteVolume.ID_Bound=1 prob.EOS.EOS=1
+nasg-b0-bound  max_step=20 FiniteVolume.ID_Bound=1 prob.EOS.b_1=0 prob.EOS.q_1=0
+thinc          max_step=20 FiniteVolume.THINC=1
+weno5          max_step=20 FiniteVolume.Scheme=WENO5
+drop           max_step=20 prob.problem=1 geometry.prob_lo=-1 -1 geometry.prob_hi=1 1 geometry.is_periodic=1 1 run.lo_bc=0 0 run.hi_bc=0 0 amr.n_cell=64 64 amr.blocking_factor_y=8 stop_time=4.0e-3 amr.t_write_interval=1.0e-3
+drop-sg        max_step=20 prob.problem=1 geometry.prob_lo=-1 -1 geometry.prob_hi=1 1 geometry.is_periodic=1 1 run.lo_bc=0 0 run.hi_bc=0 0 amr.n_cell=64 64 amr.blocking_factor_y=8 stop_time=4.0e-3 amr.t_write_interval=1.0e-3 prob.EOS.EOS=1
+drop-thinc     max_step=20 prob.problem=1 geometry.prob_lo=-1 -1 geometry.prob_hi=1 1 geometry.is_periodic=1 1 run.lo_bc=0 0 run.hi_bc=0 0 amr.n_cell=64 64 amr.blocking_factor_y=8 stop_time=4.0e-3 amr.t_write_interval=1.0e-3 FiniteVolume.THINC=1
+drop-pf-acdi   max_step=20 prob.problem=1 geometry.prob_lo=-1 -1 geometry.prob_hi=1 1 geometry.is_periodic=1 1 run.lo_bc=0 0 run.hi_bc=0 0 amr.n_cell=64 64 amr.blocking_factor_y=8 stop_time=4.0e-3 amr.t_write_interval=1.0e-3 PhaseField.phase_field=1
+drop-bound     max_step=20 prob.problem=1 geometry.prob_lo=-1 -1 geometry.prob_hi=1 1 geometry.is_periodic=1 1 run.lo_bc=0 0 run.hi_bc=0 0 amr.n_cell=64 64 amr.blocking_factor_y=8 stop_time=4.0e-3 amr.t_write_interval=1.0e-3 FiniteVolume.ID_Bound=1
+drop-weno5     max_step=20 prob.problem=1 geometry.prob_lo=-1 -1 geometry.prob_hi=1 1 geometry.is_periodic=1 1 run.lo_bc=0 0 run.hi_bc=0 0 amr.n_cell=64 64 amr.blocking_factor_y=8 stop_time=4.0e-3 amr.t_write_interval=1.0e-3 FiniteVolume.Scheme=WENO5

@@ -34,8 +34,8 @@ the interfaces and the shocks. The scale bar is 0.1.*
 | `SIXEQS_IE_NPHASE` | N-phase six-equation model, internal-energy formulation, with pressure relaxation |
 
 **Thermodynamics and physics**
-- Equations of state: ideal gas, stiffened gas, and Mie–Grüneisen (constant Γ with reference pressure and energy)
-- Viscous stresses and heat conduction (five-equation models)
+- Equations of state: ideal gas, stiffened gas, Mie–Grüneisen (constant Γ with reference pressure and energy), and Noble-Abel stiffened gas
+- Viscous stresses and heat conduction (all models; per phase in the six-equation models)
 - User-defined source terms through a hook in each case's `ProblemICBC.H`
 
 **Phase-Field interface regularization**

@@ -43,8 +43,9 @@ of the regions covered by AMR levels 1 to 4, which follow the interfaces and the
 - **Models.** Two-phase and N-phase five-equation models, a two-phase six-equation model with
   pressure or pressure-temperature relaxation, and an N-phase six-equation model with pressure
   relaxation. The model is chosen at compile time.
-- **Thermodynamics.** Ideal gas, stiffened gas and Mie-Grüneisen equations of state. Viscous
-  stresses and heat conduction in the five-equation models. User-defined source terms.
+- **Thermodynamics.** Ideal gas, stiffened gas, Mie-Grüneisen and Noble-Abel stiffened-gas equations
+  of state. Viscous stresses and heat conduction in every model, per phase in the six-equation
+  models. User-defined source terms.
 - **Interfaces.** Phase-Field regularization with the Conservative Allen-Cahn, Cahn-Hilliard,
   Conservative Diffuse Interface and Accurate Conservative Diffuse Interface mechanisms, treated
   explicitly or implicitly. THINC interface reconstruction.

@@ -20,6 +20,7 @@ CEXE_HEADERS += DerivedVelocityGradient.H
 
 CEXE_headers += InitData.H
 CEXE_HEADERS += PhysicsFunctions.H
+CEXE_HEADERS += EquationOfState_NASG.H
 CEXE_HEADERS += LinearAlgebra.H
 
 

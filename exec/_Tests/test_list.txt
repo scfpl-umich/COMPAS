@@ -8,9 +8,17 @@ Advection-5Eq-N
 Advection-6Eq
 Advection-6Eq-N
 
-# --- Viscous and conductive fluxes for the N-phase five-equation model ---
-# (the 5Eq cases below cover the two-phase model; the six-equation models have no diffusion yet)
+# --- Viscous and conductive fluxes (DIFFUSION = true) ---
+# The N-phase five-equation model (the 5Eq cases below cover the two-phase model), and the two
+# six-equation models: decay of a shear wave, heat conduction across a contact, and advection
+# of a drop (equilibrium, and an absent third phase for the N-phase model)
 Advection-Viscous-5Eq-N
+ShearDecay-6Eq
+ShearDecay-6Eq-N
+HeatConduction-6Eq
+HeatConduction-6Eq-N
+Advection-Viscous-6Eq
+Advection-Viscous-6Eq-N
 
 # --- Advection-5Eq with THINC and with Phase-Field, to try each out of the box ---
 Advection-THINC-5Eq
@@ -40,8 +48,10 @@ RichtmyerMeshkov-Multimode-5Eq
 # --- High-order WENO5 via quadrature ---
 ShockVortex-5Eq
 
-# --- High-order WENO5 with viscosity and no-slip wall ---
+# --- High-order WENO5 with viscosity and no-slip wall, and the six-equation copies ---
 ViscousShockTube-5Eq
+ViscousShockTube-6Eq
+ViscousShockTube-6Eq-N
 
 # --- Convergence case with python tool ---
 IsentropicVortex-5Eq
@@ -54,3 +64,10 @@ Sod-6Eq-N
 
 # --- Shu-Osher shock tube with AMR, one model; variants compare the reconstruction schemes ---
 ShuOsher-5Eq
+
+# --- Noble-Abel stiffened-gas EOS (prob.EOS.EOS = 3), one case per model: water-air and water
+# shock tubes, a water drop at uniform pressure and velocity, and b = q = 0 against the stiffened gas ---
+NASG-5Eq
+NASG-5Eq-N
+NASG-6Eq
+NASG-6Eq-N

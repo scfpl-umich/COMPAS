@@ -85,6 +85,34 @@ void FVM_SurfaceIntegral_NC(int i, int j, int k,
     dof_out(i,j,k,INDEX_Energy2)         += -(Alpha2_rho2/rho*Vel_Dot_Grad_Alpha1_p1 - Alpha1_rho1/rho*Vel_Dot_Grad_Alpha2_p2);
     dof_out(i,j,k,INDEX_VolumeFraction1) += Alpha1*Div_Vel;
 
+#if (DIFFUSION == true)
+    // Viscous energy of the phases. The conservative flux puts all of [div(u.tau)]_h into
+    // phase 1; phase 2 takes Y_2 [div(u.tau)]_h + alpha_2 Phi_2 - Y_2 Phi from it, with
+    // Phi_k = tau_k : grad u and Phi = alpha_1 Phi_1 + alpha_2 Phi_2. Each phase then gets
+    // Y_k [div(u.tau)]_h + alpha_k Phi_k - Y_k Phi: the sum is conservative, an absent phase
+    // (alpha_k = Y_k = 0) gets 0 and a uniform velocity gives 0.
+    amrex::Real Div_Work;
+    FVM_Divergence_K(i, j, k, INDEX_NC_ViscousWork,
+                     Div_Work,
+        AMREX_D_DECL(flxxNC, flxyNC, flxzNC),
+        AMREX_D_DECL(dx    , dy    , dz    ));
+
+    amrex::Array<amrex::Real,2> Phi_Phase;
+    FDM_Conservative2ViscousDissipation_K(i, j, k,
+                                          Phi_Phase,
+                                          dof_in,
+                             AMREX_D_DECL(dx, dy, dz),
+                                          EOS_Parameter);
+
+    amrex::Real Alpha2   = 1.0 - Alpha1;
+    amrex::Real Y2       = Alpha2_rho2/rho;
+    amrex::Real Phi      = Alpha1*Phi_Phase[0] + Alpha2*Phi_Phase[1];
+    amrex::Real Transfer = Y2*Div_Work + (Alpha2*Phi_Phase[1] - Y2*Phi);
+
+    dof_out(i,j,k,INDEX_Energy1) -= Transfer;
+    dof_out(i,j,k,INDEX_Energy2) += Transfer;
+#endif
+
 }
 
 

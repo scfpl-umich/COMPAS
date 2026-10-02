@@ -30,8 +30,10 @@ void EquationOfState_Mixture(amrex::Real& Output,
         amrex::Real AP = 0.0;
         amrex::Real BP = 0.0;
         for (int i_Phase = 0; i_Phase < NPHASE; i_Phase++){
-            AP += Alpha[i_Phase]*EOS_Parameter.A[i_Phase];
-            BP += Alpha[i_Phase]*EOS_Parameter.B[i_Phase];
+            // NASG: phi_k = alpha_k - b_k alpha_k rho_k (alpha_k when b_k = 0)
+            amrex::Real Phi = NASG_Phi(Alpha[i_Phase], Alpha_rho[i_Phase], EOS_Parameter.C[i_Phase]);
+            AP += Phi*EOS_Parameter.A[i_Phase];
+            BP += Phi*EOS_Parameter.B[i_Phase];
         }
         
         //From Pressure to Internal Energy
@@ -49,7 +51,8 @@ void EquationOfState_Mixture(amrex::Real& Output,
         amrex::Real BT = 0.0;
         for (int i_Phase = 0; i_Phase < NPHASE; i_Phase++){
             rho_CT += Alpha_rho[i_Phase]*EOS_Parameter.cv[i_Phase];
-            BT += Alpha[i_Phase]*EOS_Parameter.B[i_Phase]/(1.0 + EOS_Parameter.A[i_Phase]);
+            amrex::Real Phi = NASG_Phi(Alpha[i_Phase], Alpha_rho[i_Phase], EOS_Parameter.C[i_Phase]);
+            BT += Phi*EOS_Parameter.B[i_Phase]/(1.0 + EOS_Parameter.A[i_Phase]);
         }
         
         //From Temperature to Internal Energy

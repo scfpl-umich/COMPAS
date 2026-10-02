@@ -72,7 +72,10 @@ Compressible5Eq_NPhase_PhaseField::SaveSourceTermsBeforeReflux (amrex::MultiFab 
 
             for (int i_Phase = 0; i_Phase < NPHASE; i_Phase++){
                 amrex::Real Alphai = Conservative[INDEX_VolumeFraction1+i_Phase];
-                source_arr(i,j,k,i_Phase) = Alphai*(1.0 + K[i_Phase]);
+                // Kapila coefficient alpha_k (1 + K_k) = phi_k (1 + K_k) for NASG (see NonConservative)
+                amrex::Real Phii = (lparm->Physics_Parm.source_term == 1)
+                                 ? NASG_Phi(Alphai, Conservative[INDEX_Mass1+i_Phase], lparm->C[i_Phase]) : Alphai;
+                source_arr(i,j,k,i_Phase) = Phii*(1.0 + K[i_Phase]);
             }
             
         });

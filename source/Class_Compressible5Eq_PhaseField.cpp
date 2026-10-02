@@ -100,12 +100,15 @@ Compressible5Eq_PhaseField::SaveSourceTermsBeforeReflux (amrex::MultiFab & sourc
                 Conservative[iState] = statein(i,j,k,iState);
             }
             amrex::Real Alpha1 = Conservative[INDEX_VolumeFraction1];
+            // Kapila coefficient alpha_1 (1 + K_1) = phi_1 (1 + K_1) for NASG (see NonConservative)
+            amrex::Real Phi1 = (lparm->Physics_Parm.source_term == 1)
+                             ? NASG_Phi(Alpha1, Conservative[INDEX_Mass1], lparm->C1) : Alpha1;
             amrex::Array<amrex::Real,2> K;
             Conservative2K(K,
                            Conservative, *lparm,
                            lparm->Physics_Parm.source_term);
             amrex::Real K1 = K[0];
-            source_arr(i,j,k,0) = Alpha1*(1.0 + K1);
+            source_arr(i,j,k,0) = Phi1*(1.0 + K1);
         });
     }
 #endif

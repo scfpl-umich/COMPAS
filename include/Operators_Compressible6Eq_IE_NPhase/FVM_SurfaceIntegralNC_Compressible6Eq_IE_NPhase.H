@@ -82,6 +82,21 @@ void FVM_SurfaceIntegral_NC(int i, int j, int k,
 
     #endif
 
+#if (DIFFUSION == true)
+    // Viscous dissipation of each phase internal energy, alpha_k Phi_k with Phi_k = tau_k : grad u
+    // (Huang, arXiv:2609.18085, Eq. 20). The conservative viscous flux u.tau goes to rho E
+    // (FluxDiffusion_Compressible6Eq_IE_NPhase.H).
+    amrex::Array<amrex::Real,NPHASE> Phi_Phase;
+    FDM_Conservative2ViscousDissipation_K(i, j, k,
+                                          Phi_Phase,
+                                          dof_in,
+                             AMREX_D_DECL(dx, dy, dz),
+                                          EOS_Parameter);
+    for (int i_phase = 0; i_phase < NPHASE; ++i_phase){
+        dof_out(i,j,k, INDEX_Energy1 + i_phase) += dof_in(i,j,k, INDEX_VolumeFraction1 + i_phase)*Phi_Phase[i_phase];
+    }
+#endif
+
 }
 
 

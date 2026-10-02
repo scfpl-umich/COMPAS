@@ -42,6 +42,8 @@ void Conservative2Pmin(amrex::Real& Pmin,
     NonConservative(K,
                     p,
                     Alpha1,
+                    Alpha1_rho1,
+                    Alpha2_rho2,
                     EOS_Parameter,
                     ID_K);
     amrex::Real K1 = K[0];
@@ -49,8 +51,12 @@ void Conservative2Pmin(amrex::Real& Pmin,
     
     amrex::Real p_min1 = EOS_Parameter.p_min[0];
     amrex::Real p_min2 = EOS_Parameter.p_min[1];
-    Pmin = Alpha1*(1.0 + K1)*p_min1
-         + Alpha2*(1.0 + K2)*p_min2;
+    // Kapila coefficient of alpha_k: alpha_k (1 + K_k), which is phi_k (1 + K_k) for NASG when
+    // K is on (phi_k = alpha_k - b_k alpha_k rho_k, alpha_k when b_k = 0); alpha_k when K = 0
+    amrex::Real Phi1 = (ID_K == 1) ? NASG_Phi(Alpha1, Alpha1_rho1, EOS_Parameter.C1) : Alpha1;
+    amrex::Real Phi2 = (ID_K == 1) ? NASG_Phi(Alpha2, Alpha2_rho2, EOS_Parameter.C2) : Alpha2;
+    Pmin = Phi1*(1.0 + K1)*p_min1
+         + Phi2*(1.0 + K2)*p_min2;
     
 }
 

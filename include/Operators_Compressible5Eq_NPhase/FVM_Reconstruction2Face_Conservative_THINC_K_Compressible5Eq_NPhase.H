@@ -44,6 +44,10 @@ Reconstruct_State_From_VolumeFraction (amrex::Array<amrex::Real,2*NPHASE+AMREX_S
 
         amrex::Real rho_k = Alpha_rho[i_Phase] / (Alpha[i_Phase] + 1.0e-16);
         amrex::Real rho_e_k = EOS_Parameter.A[i_Phase] * p + EOS_Parameter.B[i_Phase] + rho_k * EOS_Parameter.D[i_Phase];
+        // NASG: rho_k e_k = (1 - b_k rho_k)(A_k p + B_k) + rho_k q_k
+        if (EOS_Parameter.C[i_Phase] > 0.0){
+            rho_e_k = NASG_Xi_rho(rho_k, EOS_Parameter.C[i_Phase]) * (EOS_Parameter.A[i_Phase] * p + EOS_Parameter.B[i_Phase]) + rho_k * EOS_Parameter.D[i_Phase];
+        }
 
         Alpha_rho_Recon[i_Phase] = Alpha_Reconstructed[i_Phase] * rho_k;
 

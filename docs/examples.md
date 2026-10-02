@@ -292,6 +292,12 @@ all of them, and each is also a starting point for a new case.
 | `Advection-6Eq` | `SIXEQS` | 2 | Four shapes; base test of the model, with pressure relaxation and ACDI |
 | `Advection-6Eq-N` | `SIXEQS_IE_NPHASE`, 5 phases | 2 | Four shapes of four materials; base test of the model, with pressure relaxation and ACDI |
 | `Advection-Viscous-5Eq-N` | `FIVEEQS_NPHASE`, 5 phases | 2 | Four shapes with viscosity and heat conduction in every material |
+| `ShearDecay-6Eq` | `SIXEQS` | 2 | Decay of a shear wave in a mixture of two gases of different viscosities; viscous fluxes, the phase share of the dissipation, AMR reflux |
+| `ShearDecay-6Eq-N` | `SIXEQS_IE_NPHASE`, 2 phases | 2 | As `ShearDecay-6Eq` |
+| `HeatConduction-6Eq` | `SIXEQS` | 2 | Heat conduction across a contact between the two phases, against the erf profile; phase heat fluxes with pressure-temperature relaxation |
+| `HeatConduction-6Eq-N` | `SIXEQS_IE_NPHASE`, 2 phases | 2 | The same contact, where no heat passes between the phases, and a uniform mixture against the erf profile |
+| `Advection-Viscous-6Eq` | `SIXEQS` | 2 | A liquid drop advected in gas with viscosity and heat conduction; uniform pressure, velocity and phase temperatures |
+| `Advection-Viscous-6Eq-N` | `SIXEQS_IE_NPHASE`, 3 phases | 2 | As `Advection-Viscous-6Eq`, with a third phase that stays exactly absent |
 | `Advection-THINC-5Eq` | `FIVEEQS` | 2 | `Advection-5Eq` with THINC |
 | `Advection-PF-5Eq` | `FIVEEQS` | 2 | `Advection-5Eq` with implicit CAC-Adv Phase-Field regularization |
 | `COMPAS-STL-5Eq` | `FIVEEQS` | 2 | A solid read from an STL file falls into a pool; STL reader, gravity source term, viscosity, THINC, on CPUs |
@@ -303,9 +309,15 @@ all of them, and each is also a starting point for a new case.
 | `NonsphericalCollapse-6Eq` | `SIXEQS` | 3 | Gas bubble collapsing near a wall (Johnsen and Colonius 2009); pressure relaxation, THINC, user refinement tagging, no subcycling |
 | `ShockVortex-5Eq` | `FIVEEQS` | 2 | Vortex through a stationary shock; quadrature WENO5 with AMR |
 | `ViscousShockTube-5Eq` | `FIVEEQS` | 2 | Viscous shock tube of Daru and Tenaud; quadrature WENO5 with viscous fluxes and no-slip walls |
+| `ViscousShockTube-6Eq` | `SIXEQS` | 2 | `ViscousShockTube-5Eq` with one gas in the six-equation model; WENO5 with viscous fluxes and no-slip walls |
+| `ViscousShockTube-6Eq-N` | `SIXEQS_IE_NPHASE`, 2 phases | 2 | As `ViscousShockTube-6Eq` |
 | `IsentropicVortex-5Eq` | `FIVEEQS` | 2 | Isentropic vortex over one period; quadrature WENO5, the [order-of-accuracy](verification.md#order-of-accuracy) case |
 | `Sod-5Eq` | `FIVEEQS` | 3 | [Sod shock tube](verification.md#sod-shock-tube) with AMR and outflow boundaries; variants along $y$ and $z$, between walls, and the [water-air shock tube](verification.md#water-air-shock-tube) |
 | `Sod-5Eq-N` | `FIVEEQS_NPHASE`, 2 phases | 3 | As `Sod-5Eq` |
 | `Sod-6Eq` | `SIXEQS` | 3 | As `Sod-5Eq`, with pressure relaxation |
 | `Sod-6Eq-N` | `SIXEQS_IE_NPHASE`, 2 phases | 3 | As `Sod-5Eq`, with pressure relaxation |
 | `ShuOsher-5Eq` | `FIVEEQS` | 2 | [Shu-Osher](verification.md#shu-osher-problem) shock-entropy wave interaction with AMR; variants compare the reconstruction schemes |
+| `NASG-5Eq` | `FIVEEQS` | 2 | Noble-Abel stiffened gas: air-water and water shock tubes with liquid water of Le Métayer and Saurel (2016), a water drop advected at uniform pressure and velocity, and $b = q = 0$ against the stiffened gas; conservation and covolume diagnostics in CSV |
+| `NASG-5Eq-N` | `FIVEEQS_NPHASE`, 2 phases | 2 | As `NASG-5Eq` |
+| `NASG-6Eq` | `SIXEQS` | 2 | As `NASG-5Eq`, with pressure and pressure-temperature relaxation |
+| `NASG-6Eq-N` | `SIXEQS_IE_NPHASE`, 2 phases | 2 | As `NASG-5Eq`, with pressure relaxation |

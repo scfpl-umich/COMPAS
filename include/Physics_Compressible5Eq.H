@@ -7,6 +7,7 @@
 #ifndef Physics_Compressible5Eq_H_
 #define Physics_Compressible5Eq_H_
 
+#include<EquationOfState_NASG.H>
 #include<Variables_Compressible5Eq.H>
 #include<Physics_Parameter_Compressible5Eq.H>
 

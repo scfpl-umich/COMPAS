@@ -10,6 +10,8 @@
 #include<Macros.H>
 #if (PHYSICS==FIVEEQS)
 
+// ((A+1) p + B)/A = gamma (p + pinf), which is rho c^2 of the phase for the stiffened gas and
+// (1 - b rho) rho c^2 for NASG
 AMREX_GPU_DEVICE
 AMREX_FORCE_INLINE
 void rho_c2_Phase(amrex::Real& rho_c2,

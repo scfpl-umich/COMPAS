@@ -24,27 +24,63 @@ tracking is needed.
 Every phase has an equation of state of the form
 
 $$
-\rho_k e_k = A_k P_k + B_k + \rho_k D_k ,
+\rho_k e_k = \left(1 - C_k\rho_k\right)\left(A_k P_k + B_k\right) + \rho_k D_k ,
 $$
 
-which covers the three equations of state in COMPAS. The run-time parameter `prob.EOS.EOS`
+which covers the four equations of state in COMPAS. The run-time parameter `prob.EOS.EOS`
 selects one for all phases.
 
-| `prob.EOS.EOS` | $A_k$ | $B_k$ | $D_k$ |
-|---|---|---|---|
-| `0`, ideal gas | $1/(\gamma_k-1)$ | $0$ | $0$ |
-| `1`, stiffened gas | $1/(\gamma_k-1)$ | $\gamma_k P_{\infty,k}/(\gamma_k-1)$ | $0$ |
-| `2`, Mie–Grüneisen | $1/\Gamma_k$ | $-p_{\mathrm{ref},k}/\Gamma_k$ | $e_{\mathrm{ref},k}$ |
+| `prob.EOS.EOS` | $A_k$ | $B_k$ | $C_k$ | $D_k$ |
+|---|---|---|---|---|
+| `0`, ideal gas | $1/(\gamma_k-1)$ | $0$ | $0$ | $0$ |
+| `1`, stiffened gas | $1/(\gamma_k-1)$ | $\gamma_k P_{\infty,k}/(\gamma_k-1)$ | $0$ | $0$ |
+| `2`, Mie–Grüneisen | $1/\Gamma_k$ | $-p_{\mathrm{ref},k}/\Gamma_k$ | $0$ | $e_{\mathrm{ref},k}$ |
+| `3`, Noble-Abel stiffened gas | $1/(\gamma_k-1)$ | $\gamma_k P_{\infty,k}/(\gamma_k-1)$ | $b_k$ | $q_k$ |
 
 The constants $\gamma_k$, $P_{\infty,k}$, $\Gamma_k$, $p_{\mathrm{ref},k}$,
-$e_{\mathrm{ref},k}$ and $c_{v,k}$ are the inputs `gamma`, `pinf`, `gGamma`, `pref`, `eref`
-and `cv`, listed under [Equation of state and materials](inputs.md#equation-of-state-and-materials).
+$e_{\mathrm{ref},k}$, $b_k$, $q_k$ and $c_{v,k}$ are the inputs `gamma`, `pinf`, `gGamma`, `pref`,
+`eref`, `b`, `q` and `cv`, listed under
+[Equation of state and materials](inputs.md#equation-of-state-and-materials).
 
 Where a temperature is needed, it comes from
 
 $$
-\rho_k e_k = \rho_k c_{v,k} T_k + \frac{B_k}{1+A_k} + \rho_k D_k .
+\rho_k e_k = \rho_k c_{v,k} T_k + \left(1 - C_k\rho_k\right)\frac{B_k}{1+A_k} + \rho_k D_k .
 $$
+
+### Noble-Abel stiffened gas
+
+The Noble-Abel stiffened gas (NASG, Le Métayer and Saurel 2016) adds to the stiffened gas the
+covolume $b_k$, the volume of the molecules, and the heat of formation $q_k$:
+
+$$
+\rho_k e_k = \frac{\left(1 - b_k\rho_k\right)\left(P_k + \gamma_k P_{\infty,k}\right)}{\gamma_k - 1} + \rho_k q_k ,
+\qquad
+\rho_k c_k^2 = \frac{\gamma_k\left(P_k + P_{\infty,k}\right)}{1 - b_k\rho_k} ,
+\qquad
+T_k = \frac{\left(P_k + P_{\infty,k}\right)\left(1/\rho_k - b_k\right)}{(\gamma_k - 1)\,c_{v,k}} .
+$$
+
+With $b_k = q_k = 0$ it is the stiffened gas, and the results are then identical, bit for bit,
+to those of `prob.EOS.EOS = 1`. In the mixture equations below the covolume enters through
+$\phi_k = \alpha_k - b_k\alpha_k\rho_k$, which replaces $\alpha_k$ wherever it multiplies
+$A_k$ or $B_k$, so that $\alpha_k\rho_ke_k = \phi_k(A_kP_k + B_k) + \alpha_k\rho_k q_k$.
+
+The equation of state needs $1/\rho_k > b_k$, that is $\xi_k = 1 - b_k\rho_k > 0$. Numerical
+states can break it, mostly in the traces of a phase at interfaces, where the mass and the volume
+fraction of the phase are not transported in proportion. COMPAS bounds the covolume factor
+where it is formed, with a floor: $\xi_k \geq 10^{-6}$ in the six-equation models and
+$\phi_k \geq 10^{-6}\,\alpha_k$ in the five-equation models (`NASG_Xi_Min` in
+`include/EquationOfState_NASG.H`). The floor is applied only to phases with $b_k > 0$. It keeps
+the state usable and leaves the conservative variables untouched, but where it acts the equation
+of state is no longer linear in $(\alpha_k, \alpha_k\rho_k)$ at fixed pressure, so pressure
+equilibrium at interfaces is no longer kept to round-off in those cells. In the six-equation
+models the pressure relaxation computes the relaxed volume fractions from the unbounded
+$\phi_k$, which moves such a phase back toward $1/\rho_k > b_k$. The bound-preserving limiter
+(`FiniteVolume.ID_Bound = 1`) works with NASG, but it bounds the energy, not $\phi_k$.
+
+**Reference.** O. Le Métayer and R. Saurel, The Noble-Abel stiffened-gas equation of state,
+*Phys. Fluids* 28 (2016) 046102, [doi:10.1063/1.4945981](https://doi.org/10.1063/1.4945981).
 
 ## Five-equation model: `FIVEEQS` and `FIVEEQS_NPHASE`
 
@@ -63,8 +99,12 @@ with $k = 1,\dots,N$ for the masses and $k = 1,\dots,N-1$ for the volume fractio
 mixture equation of state gives the pressure,
 
 $$
-P = \frac{\rho e - \sum_k \alpha_k \left(B_k + \rho_k D_k\right)}{\sum_k \alpha_k A_k} .
+P = \frac{\rho e - \sum_k \left(\phi_k B_k + \alpha_k\rho_k D_k\right)}{\sum_k \phi_k A_k} ,
+\qquad \phi_k = \alpha_k\left(1 - C_k\rho_k\right) ,
 $$
+
+which needs no division by $\alpha_k$; $\phi_k = \alpha_k$ except with the Noble-Abel stiffened
+gas.
 
 `FIVEEQS` has two phases. `FIVEEQS_NPHASE` has $N$ phases, set with `-DNPHASE=`$N$ in the
 `GNUmakefile`.
@@ -74,6 +114,10 @@ $$
 - `0` (default): $K_k = 0$, so $\alpha_k$ is only advected (Allaire et al. 2002).
 - `1`: $K_k = \dfrac{\rho c^2}{\rho_k c_k^2} - 1$, with
   $\dfrac{1}{\rho c^2} = \sum_j \dfrac{\alpha_j}{\rho_j c_j^2}$ (Kapila et al. 2001).
+  With the Noble-Abel stiffened gas this is computed as
+  $\alpha_k(1 + K_k) = \phi_k\,\rho c^2/(\gamma_k(P + P_{\infty,k}))$ and
+  $1/(\rho c^2) = \sum_j \phi_j/(\gamma_j(P + P_{\infty,j}))$, again without a division by
+  $\alpha_k$.
 
 With `1`, each phase in a mixture cell is compressed in inverse proportion to its stiffness
 $\rho_k c_k^2$, so all phases feel the same pressure change; use it when shocks cross interfaces
@@ -119,16 +163,20 @@ $$
 $$
 
 - Each phase has its own equation of state,
-  $\alpha_k\rho_ke_k = A_k\,\alpha_kP_k + \alpha_kB_k + \alpha_k\rho_kD_k$.
+  $\alpha_k\rho_ke_k = \xi_k A_k\,\alpha_kP_k + \xi_k\alpha_kB_k + \alpha_k\rho_kD_k$, with
+  $\xi_k = 1 - C_k\rho_k$ ($\xi_k = 1$ except with the Noble-Abel stiffened gas).
 - The two energy equations add up to the conservative equation for $\rho E$, so total energy
   is conserved.
 - The relaxation $\mathcal{R} = \mu_P(P_1 - P_2)$ is instantaneous, $\mu_P \to \infty$, and
   is applied after every Runge–Kutta stage.
 - `Physics.pressure_relaxation = 1` relaxes to $P_1 = P_2$, with $P_I$ the relaxed pressure.
 - `Physics.pressure_temperature_relaxation = 1` relaxes to $P_1 = P_2$ and $T_1 = T_2$.
+- Both relaxations have closed forms, also with the Noble-Abel stiffened gas: a quadratic
+  for the relaxed pressure, written with $\phi_k = \xi_k\alpha_k$ and the phase energies
+  without the heat of formation, which reduces to the stiffened-gas one when $b_k = 0$.
 - With neither, the phases keep their own pressures. Both are off by default.
-- The model is solved without viscous and conductive fluxes and is built with
-  `-DDIFFUSION=false`.
+- With `-DDIFFUSION=true` the model has viscous and conductive fluxes, described under
+  [Viscous and conductive fluxes in the six-equation models](#viscous-and-conductive-fluxes-in-the-six-equation-models).
 
 **Reference.** Z. Huang, A consistent and conservative Phase-Field method for compressible
 multiphase flows with the six-equation model, arXiv:2609.18085 (2026),
@@ -155,6 +203,10 @@ for $k = 1,\dots,N$, with $P = \sum_k \alpha_kP_k$ and $\sum_k\mathcal{R}_k = 0$
   momentum and one total energy.
 - The internal energy equations are non-conservative. The total energy equation is
   conservative, and the relaxation makes the two agree.
+- The wave-speed estimates of the Riemann solvers, the time step and the output `c` use the
+  frozen sound speed $\rho c^2 = \sum_k \alpha_k\rho_kc_k^2$, with
+  $\rho_kc_k^2 = ((A_k+1)P_k + B_k)/(A_k\xi_k)$ for every equation of state, which is
+  $\gamma_k(P_k + P_{\infty,k})/\xi_k$ for the stiffened gas and the Noble-Abel stiffened gas.
 - `Physics.pressure_relaxation = 1`: after every stage a Newton iteration finds the common
   pressure $P$ from
 
@@ -163,12 +215,89 @@ for $k = 1,\dots,N$, with $P = \sum_k \alpha_kP_k$ and $\sum_k\mathcal{R}_k = 0$
   $$
 
   the volume fractions follow with $P_I = P$, and the phase internal energies are reset from
-  $\rho e = \rho E - \tfrac12\rho\lvert\vec u\rvert^2$. It is off by default.
+  $\rho e = \rho E - \tfrac12\rho\lvert\vec u\rvert^2$. It is off by default. With the
+  Noble-Abel stiffened gas, $\rho_kc_k^2(P) = \gamma_k(P + P_{\infty,k})/\xi_k$, so the equation
+  reads $\sum_k \phi_k(P_k - P)/(\gamma_k(P + P_{\infty,k})) = 0$, and the reset keeps the
+  heat-of-formation terms $\alpha_k\rho_kq_k$.
 - $N$ is set with `-DNPHASE=`$N$ in the `GNUmakefile`.
-- As for `SIXEQS`, the model is built with `-DDIFFUSION=false`.
+- With `-DDIFFUSION=true` the model has viscous and conductive fluxes, described in the next
+  section.
 
 **Reference.** The same paper as `SIXEQS`: Z. Huang, arXiv:2609.18085 (2026),
 [doi:10.48550/arXiv.2609.18085](https://doi.org/10.48550/arXiv.2609.18085).
+
+## Viscous and conductive fluxes in the six-equation models
+
+With `-DDIFFUSION=true`, `SIXEQS` and `SIXEQS_IE_NPHASE` give each phase its own viscous stress
+and heat flux (Huang 2026),
+
+$$
+\boldsymbol\tau_k = \mu_k\left(\nabla\vec u + \nabla\vec u^{T}\right) + \left(\mu_{B,k} - \tfrac23\mu_k\right)(\nabla\cdot\vec{u})\,\mathbb{I},
+\qquad
+\vec q_k = -\kappa_k\nabla T_k ,
+$$
+
+with $\mu_{B,k}$ the bulk viscosity, as in the five-equation models (the coefficient of
+$\nabla\cdot\vec u$ in the paper is $\mu_{B,k} - \tfrac23\mu_k$), and with $T_k$ the temperature of
+phase $k$ from its own equation of state. The momentum gets the mixture stress
+$\boldsymbol\tau = \sum_k\alpha_k\boldsymbol\tau_k$, and the energies get, in `SIXEQS` (the
+two-phase model) and in `SIXEQS_IE_NPHASE` (the N-phase model),
+
+$$
+\begin{aligned}
+\frac{\partial (\rho \vec{u})}{\partial t} + \dots &= \nabla\cdot\boldsymbol\tau\\
+\frac{\partial (\alpha_k\rho_k E_k)}{\partial t} + \dots &= Y_k\,\vec u\cdot(\nabla\cdot\boldsymbol\tau) + \alpha_k\boldsymbol\tau_k : \nabla\vec u - \nabla\cdot(\alpha_k\vec q_k) && \text{(two-phase model)}\\
+\frac{\partial (\alpha_k\rho_k e_k)}{\partial t} + \dots &= \alpha_k\boldsymbol\tau_k : \nabla\vec u - \nabla\cdot(\alpha_k\vec q_k) && \text{(N-phase model)}\\
+\frac{\partial (\rho E)}{\partial t} + \dots &= \nabla\cdot\Big(\boldsymbol\tau\cdot\vec u - \sum_k\alpha_k\vec q_k\Big) && \text{(N-phase model)}
+\end{aligned}
+$$
+
+Each phase dissipates $\alpha_k\boldsymbol\tau_k : \nabla\vec u$ with its own viscosity, and in
+`SIXEQS` the work of the mixture viscous force is shared by mass fraction. The discretization:
+
+- **Momentum.** The face flux $\boldsymbol\tau_f\cdot\vec e_d$ uses the face velocity gradient of
+  the five-equation models and the face viscosities $\mu = \sum_k\alpha_k\mu_k$ and
+  $\mu_B = \sum_k\alpha_k\mu_{B,k}$ averaged from the two cells, that is, with arithmetic face
+  volume fractions.
+- **Viscous energy.** The conservative face flux $\vec u_f\cdot\boldsymbol\tau_f\cdot\vec e_d$ goes
+  to $\rho E$ in `SIXEQS_IE_NPHASE`, and each phase internal energy gets the cell source
+  $\alpha_k\Phi_k$, with
+  $\Phi_k = \mu_k(\partial_iu_j + \partial_ju_i)\partial_ju_i + (\mu_{B,k} - \tfrac23\mu_k)(\nabla\cdot\vec u)^2 \ge 0$
+  from central differences. `SIXEQS` stores no mixture energy: the whole flux goes to the energy
+  of phase 1, and phase 2 then takes
+  $Y_2[\nabla\cdot(\vec u\cdot\boldsymbol\tau)]_h + \alpha_2\Phi_2 - Y_2\Phi$ from it, with
+  $\Phi = \sum_k\alpha_k\Phi_k$ and $[\nabla\cdot(\vec u\cdot\boldsymbol\tau)]_h$ the divergence of
+  the same face fluxes. Phase $k$ thus gets
+  $Y_k[\nabla\cdot(\vec u\cdot\boldsymbol\tau)]_h + \alpha_k\Phi_k - Y_k\Phi$.
+- **Heat.** Each phase conducts through itself, with the face flux
+  $w_k\,\kappa_k\,(T_{k,c} - T_{k,m})/\Delta x$ into its energy, $w_k$ the harmonic mean
+  $2\alpha_{k,m}\alpha_{k,c}/(\alpha_{k,m} + \alpha_{k,c})$ of the volume fractions of the two
+  cells. $T_k$ is used only where the phase is present, $\alpha_k \ge 10^{-10}$ and
+  $\alpha_k\rho_k > 0$, and $w_k = 0$ unless it is present in both cells. In
+  `SIXEQS_IE_NPHASE` the sum of the phase heat fluxes also goes to $\rho E$.
+
+Mass, momentum and total energy are conservative to round-off, across AMR levels as well: the
+fluxes are refluxed, and in `SIXEQS` the share of phase 2 is corrected with them. An absent
+phase ($\alpha_k = 0$) gets no viscous energy and no heat, and a uniform velocity gives no
+viscous terms. Heat passes from one phase to another only through the relaxation, with
+`Physics.pressure_temperature_relaxation = 1` in `SIXEQS`. Pressure relaxation alone exchanges
+no heat, so with it, and always in `SIXEQS_IE_NPHASE`, two phases at different temperatures
+that meet at an interface do not conduct heat to each other.
+
+In `SIXEQS_IE_NPHASE` the phase internal energies get the cell dissipation $\alpha_k\Phi_k$ and
+$\rho E$ gets the conservative flux, so the sum of the phase internal energies and
+$\rho E - \tfrac12\rho\lvert\vec u\rvert^2$ agree to truncation error only. With
+`Physics.pressure_relaxation = 1` the phase internal energies are reset from $\rho E$ after
+every stage.
+
+The time step is limited by `run.vnn` ([Time stepping](inputs.md#time-stepping)) with the
+diffusivity of each face: the larger of $(\tfrac43\mu + \mu_B)/\rho$, with $\rho$ the smaller of
+the two cell densities, and $(w_k/\min\alpha_k)\,\kappa_k/(\rho_kc_{v,k})$ over the phases that
+conduct through the face, with $\rho_k$ the smaller of the two phase densities. The factor
+$w_k/\min\alpha_k$ lies between 1 and 2.
+
+The walls are those of the five-equation models: a no-slip wall (`5`) has zero velocity, and
+every wall is adiabatic, for each phase.
 
 ## Comparing the models
 

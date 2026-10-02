@@ -1,0 +1,13 @@
+# Run-time variants of this case, run by scripts/test_cases.sh with the same executable.
+# Each line is a name followed by ParmParse overrides appended to "<exe> prob/inputs".
+# The base inputs use the N-phase six-equation model (NPHASE = 2) with DIFFUSION = true,
+# MUSCL-MC, HLLC, no relaxation and one AMR level.
+
+# --- Relaxation ---
+relax-p                 max_step=10 Physics.pressure_relaxation=1
+
+# --- Grid, scheme, Riemann solver and bulk viscosity ---
+no-amr                  max_step=10 amr.max_level=0
+scheme-weno5            max_step=10 FiniteVolume.Scheme=WENO5
+riemann-hll             max_step=10 Physics.RiemannSolver=HLL
+bulk-viscosity          max_step=10 prob.EOS.muB=0.01 0.002

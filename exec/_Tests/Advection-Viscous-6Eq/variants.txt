@@ -1,0 +1,12 @@
+# Run-time variants of this case, run by scripts/test_cases.sh with the same executable.
+# Each line is a name followed by ParmParse overrides appended to "<exe> prob/inputs".
+# The base inputs use the two-phase six-equation model with DIFFUSION = true, MUSCL-MC, HLLC,
+# pressure relaxation and ACDI Phase-Field with the explicit treatment.
+
+# --- Relaxations ---
+no-relaxation           max_step=10 Physics.pressure_relaxation=0
+relax-pT                max_step=10 Physics.pressure_relaxation=0 Physics.pressure_temperature_relaxation=1
+
+# --- Interface treatment ---
+thinc                   max_step=10 FiniteVolume.THINC=1
+pf-off                  max_step=10 PhaseField.phase_field=0

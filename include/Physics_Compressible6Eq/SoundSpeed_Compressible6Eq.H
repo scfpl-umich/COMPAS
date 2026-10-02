@@ -21,19 +21,25 @@ void SoundSpeed(amrex::Real& c,
                 Parm const& EOS_Parameter,
                 bool ID_Squared = false)
 {
+    // NASG covolume factors xi_k = 1 - b_k rho_k (1 when b_k = 0)
+    amrex::Real Xi1 = NASG_Xi(Alpha1, Alpha1_rho1, EOS_Parameter.C1);
+    amrex::Real Xi2 = NASG_Xi(1.0 - Alpha1, Alpha2_rho2, EOS_Parameter.C2);
+
     amrex::Real Alpha1_rho1_c12;
     rho_c2_Phase(Alpha1_rho1_c12,
                  Alpha1_p1,
                  Alpha1,
                  EOS_Parameter.A1,
-                 EOS_Parameter.B1);
+                 EOS_Parameter.B1,
+                 Xi1);
     
     amrex::Real Alpha2_rho2_c22;
     rho_c2_Phase(Alpha2_rho2_c22,
                  Alpha2_p2,
                  (1.0 - Alpha1),
                  EOS_Parameter.A2,
-                 EOS_Parameter.B2);
+                 EOS_Parameter.B2,
+                 Xi2);
     
     amrex::Real rho_c2;
     rho_c2_Mixture(rho_c2,

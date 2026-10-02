@@ -26,7 +26,7 @@ GetVolume (amrex::Real & Vol,
     }
     else if (ID_COORDSYS==2){ // Spherical
 #if (AMREX_SPACEDIM > 1)
-        Vol = 0.333333333333333*(std::cos(x20) - std::cos(x20 + dx[1]))*dx[0]*dx[2]*(3.*x10*x10 + 3.*x10*dx[0] + dx[0]*dx[0]);
+        Vol = (1.0/3.0)*(std::cos(x20) - std::cos(x20 + dx[1]))*dx[0]*dx[2]*(3.*x10*x10 + 3.*x10*dx[0] + dx[0]*dx[0]);
 #endif
     }
 
@@ -69,7 +69,7 @@ GetTimeIntegral (amrex::Real & Integral,
         Integral = dx[0]*dx[1]*dx[2];
     }
     else if (ID_COORDSYS==1){ // Cylindrical
-        Integral = 0.333333333333333*dx[0]*dx[1]*dx[2]*(3.*x10*x10 + 3.*x10*dx[0] + dx[0]*dx[0]);
+        Integral = (1.0/3.0)*dx[0]*dx[1]*dx[2]*(3.*x10*x10 + 3.*x10*dx[0] + dx[0]*dx[0]);
     }
     else if (ID_COORDSYS==2){ // Spherical
 #if (AMREX_SPACEDIM > 1)
@@ -227,7 +227,7 @@ GetFluxIntegral (amrex::Real & Integral,
             Integral = dx[0]*dx[2];
             
         } if (ID_COORDSYS==2){
-            Integral = 0.333333333333333*std::pow(std::sin(x20 + 0.5*(1. + face)*dx[1]),2.)*dx[0]*dx[2]*(3.*x10*x10 + 3.*x10*dx[0] + dx[0]*dx[0]);
+            Integral = (1.0/3.0)*std::pow(std::sin(x20 + 0.5*(1. + face)*dx[1]),2.)*dx[0]*dx[2]*(3.*x10*x10 + 3.*x10*dx[0] + dx[0]*dx[0]);
             
         }
 
@@ -240,10 +240,10 @@ GetFluxIntegral (amrex::Real & Integral,
             Integral = dx[0]*dx[1];
 
         } else if (ID_COORDSYS==1){
-            Integral = 0.333333333333333*(3.*x10*x10 + 3.*x10*dx[0] + dx[0]*dx[0])*dx[0]*dx[1];
+            Integral = (1.0/3.0)*(3.*x10*x10 + 3.*x10*dx[0] + dx[0]*dx[0])*dx[0]*dx[1];
             
         } if (ID_COORDSYS==2){
-            Integral = 0.333333333333333*(3.*x10*x10 + 3.*x10*dx[0] + dx[0]*dx[0])*dx[0]*dx[1];
+            Integral = (1.0/3.0)*(3.*x10*x10 + 3.*x10*dx[0] + dx[0]*dx[0])*dx[0]*dx[1];
             
         }
 

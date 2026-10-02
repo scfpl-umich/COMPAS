@@ -150,6 +150,15 @@ Compressible6Eq_PhaseField::RefluxSourceTerms (amrex::MultiFab & new_dof,
                 dofArray(i,j,k,INDEX_Energy1)         +=  (Alpha2_rho2/rho*Vel_Dot_Grad_Alpha1_p1 - Alpha1_rho1/rho*Vel_Dot_Grad_Alpha2_p2);
                 dofArray(i,j,k,INDEX_Energy2)         += -(Alpha2_rho2/rho*Vel_Dot_Grad_Alpha1_p1 - Alpha1_rho1/rho*Vel_Dot_Grad_Alpha2_p2);
                 dofArray(i,j,k,INDEX_VolumeFraction1) += Alpha1*Div_Vel;
+#if (DIFFUSION == true)
+                // The conservative reflux corrected [div(u.tau)]_h in phase 1; move the share of
+                // phase 2, Y_2 times the correction, as FVM_SurfaceIntegral_NC does (the cell
+                // dissipation Phi_k has no reflux correction)
+                amrex::Real Div_Work = -xiArray(i,j,k,INDEX_NC_ViscousWork);
+                amrex::Real Transfer = Alpha2_rho2/rho*Div_Work;
+                dofArray(i,j,k,INDEX_Energy1) -= Transfer;
+                dofArray(i,j,k,INDEX_Energy2) += Transfer;
+#endif
             });
         } // end mfi
     } // end omp

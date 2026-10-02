@@ -133,6 +133,14 @@ void
 PressureRelaxationInstantaneous (amrex::MultiFab & mf,
 							     const Parm parm)
 {
+	// NASG branch: EOS = 3 with a covolume b_k > 0 or a heat of formation q_k != 0 for some phase.
+	// EOS = 3 with b = q = 0 takes the stiffened-gas branch, so it reproduces EOS = 1.
+	bool NASG = false;
+	if (parm.EOS == 3){
+		for (int i_phase = 0; i_phase < NPHASE; ++i_phase){
+			NASG = NASG || (parm.C[i_phase] > 0.0) || (parm.D[i_phase] != 0.0);
+		}
+	}
 
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
@@ -194,6 +202,48 @@ PressureRelaxationInstantaneous (amrex::MultiFab & mf,
 				amrex::Real np = (double) NPHASE;
 				amrex::Array<amrex::Real, NPHASE> AlphaR, Alpha_rho_eR;
 
+				if (NASG){
+					// NASG (Le Metayer and Saurel 2016). With phi_k = alpha_k - b_k alpha_k rho_k and
+					// Pi_k = phi_k p_k = (alpha_k rho_k e_k - alpha_k rho_k q_k - phi_k B_k)/A_k, the
+					// phase energies relaxed with the final pressure P give
+					//   alpha_kR = alpha_k + (Pi_k - phi_k P)/(gamma_k (P + pinf_k)),
+					// and sum_k alpha_kR = 1 is f(P) = sum_k (Pi_k - phi_k P)/(gamma_k P + gamma_k pinf_k) = 0,
+					// the stiffened-gas function with alpha_k -> phi_k and alpha_k p_k -> Pi_k. The
+					// pressure is then recomputed from the mixture internal energy, with the q_k terms.
+					// phi_k is taken without the covolume floor, so that a phase compressed past 1/b_k
+					// in a mixture cell by the hyperbolic step (phi_k < 0) is relaxed back.
+					amrex::Array<amrex::Real, NPHASE> Phi, Pi;
+					for(int i_phase = 0 ; i_phase<NPHASE; ++i_phase){
+						Phi[i_phase] = Alpha[i_phase] - parm.C[i_phase]*Alpha_rho[i_phase];
+						Pi[i_phase]  = (Alpha_rho_e[i_phase] - Alpha_rho[i_phase]*parm.D[i_phase] - Phi[i_phase]*parm.B[i_phase])/parm.A[i_phase];
+					}
+					NewtonRaphson(Pe, Phi, Pi, parm);
+
+					for(int i_phase = 0 ; i_phase<NPHASE; ++i_phase){
+						gamma = 1. + 1./parm.A[i_phase];
+						pinf = (gamma-1.)*parm.B[i_phase]/gamma;
+						AlphaR[i_phase] = Alpha[i_phase] + (Pi[i_phase] - Phi[i_phase]*Pe)/(gamma*(pinf+Pe));
+					}
+
+					rhoe_h = rhoE - (0.5)*rho*( AMREX_D_TERM( u*u, +v*v, +w*w ) );
+
+					amrex::Real sum_BPhi = 0.0, sum_APhi = 0.0, sum_q = 0.0;
+					amrex::Array<amrex::Real, NPHASE> PhiR;
+					for(int i_phase = 0 ; i_phase<NPHASE; ++i_phase){
+						PhiR[i_phase] = NASG_Xi(AlphaR[i_phase], Alpha_rho[i_phase], parm.C[i_phase])*AlphaR[i_phase];
+						sum_BPhi += PhiR[i_phase]*parm.B[i_phase];
+						sum_APhi += PhiR[i_phase]*parm.A[i_phase];
+						sum_q    += Alpha_rho[i_phase]*parm.D[i_phase];
+					}
+					amrex::Real pr = (rhoe_h - sum_q - sum_BPhi)/sum_APhi;
+					for(int i_phase = 0 ; i_phase<NPHASE; ++i_phase){
+						Alpha_rho_eR[i_phase] = PhiR[i_phase]*(parm.A[i_phase]*pr + parm.B[i_phase]) + Alpha_rho[i_phase]*parm.D[i_phase];
+						stateout(i,j,k, i_phase) = AlphaR[i_phase];
+						stateout(i,j,k, 2*NPHASE + i_phase) = Alpha_rho_eR[i_phase];
+					}
+					return;
+				}
+
 				NewtonRaphson(Pe, Alpha, Alpha_Ps, parm);
 			
 
@@ -213,17 +263,27 @@ PressureRelaxationInstantaneous (amrex::MultiFab & mf,
 				rhoe_h = rhoE - (0.5)*rho*( AMREX_D_TERM( u*u, +v*v, +w*w ) );
 		
 				
-				amrex::Real pr, a, b;
-				a = 0.; b = 0.;
+				// The phase energies are reset at the common pressure pr from
+				//   alpha_k rho_k e_k = alpha_k (A_k pr + B_k) + alpha_k rho_k D_k,
+				// with alpha_k rho_k unchanged. The D terms (zero for EOS 0 and 1) are added only
+				// where D_k != 0, so those EOS keep the same arithmetic.
+				amrex::Real pr, a, b, d;
+				a = 0.; b = 0.; d = 0.;
 				for(int i_phase = 0 ; i_phase<NPHASE; ++i_phase){
 					a += AlphaR[i_phase]*parm.B[i_phase];
 					b += AlphaR[i_phase]*parm.A[i_phase];
+					if (parm.D[i_phase] != 0.0){
+						d += Alpha_rho[i_phase]*parm.D[i_phase];
+					}
 				}
 				
 
-				pr = (rhoe_h - a)/b;
+				pr = (rhoe_h - a - d)/b;
 				for(int i_phase = 0 ; i_phase<NPHASE; ++i_phase){
 					Alpha_rho_eR[i_phase] = AlphaR[i_phase]*(parm.A[i_phase]*pr + parm.B[i_phase]); 
+					if (parm.D[i_phase] != 0.0){
+						Alpha_rho_eR[i_phase] += Alpha_rho[i_phase]*parm.D[i_phase];
+					}
 				}
 
 

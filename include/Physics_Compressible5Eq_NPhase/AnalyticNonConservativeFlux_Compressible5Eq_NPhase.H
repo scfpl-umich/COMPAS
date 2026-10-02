@@ -61,6 +61,7 @@ AnalyticNonConservativeHyperbolicFlux (int i,
     NonConservative(K,
                     p,
                     Alpha,
+                    Alpha_rho,
                     EOS_Parameter,
                     source);
 

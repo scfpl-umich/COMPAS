@@ -15,12 +15,13 @@ absent, the default in `include/Macros.H` applies.
 | `DEFINES += -DPHYSICS=` | `FIVEEQS`, `FIVEEQS_NPHASE`, `SIXEQS`, `SIXEQS_IE_NPHASE` | `FIVEEQS` | multiphase model ([Models and equations](models.md)) |
 | `DEFINES += -DNPHASE=` | integer | `2` | number of phases for the N-phase models |
 | `DEFINES += -DADVECTION=` | `true` / `false` | `true` | hyperbolic fluxes |
-| `DEFINES += -DDIFFUSION=` | `true` / `false` | `false` | viscous and conductive fluxes (five-equation models) |
+| `DEFINES += -DDIFFUSION=` | `true` / `false` | `false` | viscous and conductive fluxes |
 | `DEFINES += -DNONCONSERVATIVE=` | `true` / `false` | `true` | non-conservative terms of the model |
 
-`ADVECTION` and `NONCONSERVATIVE` are normally left `true`. `DIFFUSION=true` applies to
-`FIVEEQS` and `FIVEEQS_NPHASE`, and `SIXEQS` and `SIXEQS_IE_NPHASE` are built with
-`DIFFUSION=false`. `NPHASE` is used by `FIVEEQS_NPHASE` and `SIXEQS_IE_NPHASE`. The two-phase models ignore
+`ADVECTION` and `NONCONSERVATIVE` are normally left `true`. `DIFFUSION=true` applies to every
+model; the six-equation models give each phase its own stress and heat flux
+([Viscous and conductive fluxes in the six-equation models](models.md#viscous-and-conductive-fluxes-in-the-six-equation-models)).
+`NPHASE` is used by `FIVEEQS_NPHASE` and `SIXEQS_IE_NPHASE`. The two-phase models ignore
 it.
 
 The number of state variables in $d$ dimensions is

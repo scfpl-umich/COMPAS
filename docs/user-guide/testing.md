@@ -92,7 +92,11 @@ restart-write           max_step=5 amr.chk_int=5
 reconstruction scheme, Riemann solver and equation of state, and each family of Phase-Field
 mechanisms, on their model. `Advection-5Eq` also runs all eleven mechanisms and the time
 integrators, and the four `Sod-*` cases run the boundary conditions and the two-material water-air
-shock tube on each model. At release the 22 cases and their variants make 138 runs.
+shock tube on each model. The `ShearDecay-*`, `HeatConduction-*`, `Advection-Viscous-*` and
+`ViscousShockTube-*` cases run the viscous and conductive fluxes (`-DDIFFUSION=true`). The four
+`NASG-*` cases run the Noble-Abel stiffened gas on each model, and the `eos-nasg-b0` variants of the
+`Advection-*` cases check that it reproduces the stiffened gas with $b = q = 0$. The 34 cases and
+their variants make 243 runs.
 
 ## Pass and fail
 

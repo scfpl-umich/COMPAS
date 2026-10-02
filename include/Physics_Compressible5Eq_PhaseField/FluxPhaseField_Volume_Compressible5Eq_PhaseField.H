@@ -69,8 +69,11 @@ Parm const& EOS_Parameter)
         //Energy
         amrex::Real eK = 0.5*( AMREX_D_TERM(u*u,+v*v,+w*w) );
         amrex::Real M_eK = M*eK;
-        amrex::Real J1_rho1_e1 = EOS_Parameter.A1*J1*p + EOS_Parameter.B1*J1 + EOS_Parameter.D1*J1_rho1;
-        amrex::Real J2_rho2_e2 = EOS_Parameter.A2*J2*p + EOS_Parameter.B2*J2 + EOS_Parameter.D2*J2_rho2;
+        // NASG: the A and B terms carry the flux of phi_k = alpha_k - b_k alpha_k rho_k
+        amrex::Real J1_Phi = (EOS_Parameter.C1 > 0.0) ? J1 - EOS_Parameter.C1*J1_rho1 : J1;
+        amrex::Real J2_Phi = (EOS_Parameter.C2 > 0.0) ? J2 - EOS_Parameter.C2*J2_rho2 : J2;
+        amrex::Real J1_rho1_e1 = EOS_Parameter.A1*J1_Phi*p + EOS_Parameter.B1*J1_Phi + EOS_Parameter.D1*J1_rho1;
+        amrex::Real J2_rho2_e2 = EOS_Parameter.A2*J2_Phi*p + EOS_Parameter.B2*J2_Phi + EOS_Parameter.D2*J2_rho2;
 
         
         //Flux_PhaseField

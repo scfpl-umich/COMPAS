@@ -121,10 +121,14 @@ using namespace amrex;
 #ifndef NONCONSERVATIVE
 #define NONCONSERVATIVE (true)
 #endif
+// Non-conservative face components 0 to 3: u_n, (u alpha1 p1)_n, (u alpha2 p2)_n and 0 in the
+// hyperbolic step, and J1 rho1, J2 rho2, J1 rho1 EK, J2 rho2 EK in the Phase-Field step. With
+// DIFFUSION, component 4 (INDEX_NC_ViscousWork) holds the viscous energy flux (u.tau)_n.
 #if (DIFFUSION == true)
-#error "DIFFUSION=true is not implemented for PHYSICS=SIXEQS yet."
-#endif
+#define NC_TERMS 5
+#else
 #define NC_TERMS 4
+#endif
 
 #endif
 
@@ -144,9 +148,6 @@ using namespace amrex;
 #endif
 #ifndef NONCONSERVATIVE
 #define NONCONSERVATIVE (true)
-#endif
-#if (DIFFUSION == true)
-#error "DIFFUSION=true is not yet wired into the core for PHYSICS=SIXEQS_IE_NPHASE: the diffusion kernels in Operators_Compressible6Eq_IE_NPhase exist, but the viscous-work coupling (tau) into the non-conservative terms has not been ported."
 #endif
 #define NC_TERMS 1
 
