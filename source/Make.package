@@ -10,6 +10,7 @@ CEXE_sources += COMPAS.cpp
 CEXE_sources += Parm.cpp
 
 CEXE_sources += Class_Compressible_PhaseField.cpp
+CEXE_sources += Class_Compressible_PhaseField_SurfaceTension.cpp
 CEXE_sources += Class_Compressible_PhaseField_StageCoupling.cpp
 CEXE_sources += Class_Compressible5Eq_PhaseField.cpp
 CEXE_sources += Class_Compressible5Eq_NPhase_PhaseField.cpp

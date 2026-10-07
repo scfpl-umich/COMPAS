@@ -36,7 +36,7 @@ include/Operators_Compressible5Eq_NPhase_PhaseField include/Physics_Compressible
 include/Operators_Compressible6Eq include/Physics_Compressible6Eq_PhaseField \
 include/Operators_Compressible6Eq_PhaseField include/Physics_Compressible6Eq_IE_NPhase \
 include/Operators_Compressible6Eq_IE_NPhase include/Physics_Compressible6Eq_IE_NPhase_PhaseField \
-include/Operators_Compressible6Eq_IE_NPhase_PhaseField
+include/Operators_Compressible6Eq_IE_NPhase_PhaseField include/Physics_SurfaceTension
 
 Bpack	+= $(foreach dir, $(Bdirs), $(TOP)/$(dir)/Make.package)
 Blocs   += $(foreach dir, $(Bdirs), $(TOP)/$(dir))

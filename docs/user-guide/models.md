@@ -281,6 +281,126 @@ The time step is limited by `run.vnn` ([Time stepping](inputs.md#time-stepping))
 of the momentum and thermal diffusivities of each face. The walls are those of the five-equation
 models: a no-slip wall (`5`) has zero velocity, and every wall is adiabatic, for each phase.
 
+## Surface tension
+
+With `-DSURFACE_TENSION=true`, every model gets a capillary stress in the momentum equation, the
+continuum surface stress of Lafaurie et al. (1994) written for each phase. With
+$\vec g_k = \nabla\alpha_k$,
+
+$$
+\mathbb{T} = \sum_k \sigma_k\left(\lvert\vec g_k\rvert\,\mathbb{I} - \frac{\vec g_k\otimes\vec g_k}{\lvert\vec g_k\rvert}\right),
+\qquad
+\frac{\partial (\rho \vec{u})}{\partial t} + \dots = \nabla\cdot\mathbb{T} .
+$$
+
+For an interface of uniform profile, $\nabla\cdot\mathbb{T} = \sum_k\sigma_k\kappa_k\nabla\alpha_k$
+with $\kappa_k = -\nabla\cdot(\vec g_k/\lvert\vec g_k\rvert)$, the continuum surface force of
+Brackbill, Kothe and Zemach (1992), and a drop of radius $R$ holds the Laplace jump $\sigma/R$ in
+2D and $2\sigma/R$ in 3D. The phase coefficients $\sigma_k$ follow from the pairwise coefficients
+of `SurfaceTension.sigma` through $\sigma_{kl} = \sigma_k + \sigma_l$:
+
+- two phases: $\sigma_1 = \sigma_2 = \sigma_{12}/2$, so that $\mathbb{T}$ is $\sigma_{12}$ times
+  the stress of $\vec g = \nabla\alpha_1$;
+- three phases: $\sigma_k = (\sigma_{kl} + \sigma_{km} - \sigma_{lm})/2$, which may be negative
+  (a warning is printed) when no Neumann triangle exists;
+- more phases: least squares, and the run stops if the pairwise coefficients are not of the form
+  $\sigma_k + \sigma_l$.
+
+The discretization:
+
+- **Momentum.** Each face gets $\mathbb{T}\cdot\vec e_d$ from the compact face gradients of the
+  volume fractions, the stencil of the viscous fluxes: the normal derivative from the two cells
+  across the face, the tangential ones from the averages of four cells at the edges. The
+  N-phase models use $\vec g_N = -\sum_{k<N}\vec g_k$, so that the gradients add up to zero on
+  every face and two phases give the two-phase stress. A phase with
+  $\lvert\vec g_k\rvert\,h < 10^{-12}$ ($h$ the smallest cell size) adds nothing. The face flux
+  $-\mathbb{T}\cdot\vec e_d$ joins the momentum flux, so momentum is conservative to round-off,
+  across AMR levels as well.
+- **Smoothing.** The gradients are taken of the volume fractions smoothed by
+  `SurfaceTension.smoothing` passes (default 2) of the 1-2-1 filter, which replaces a cell value
+  by the weighted mean of the cell and its neighbors with the weights $(1/4, 1/2, 1/4)$ in each
+  direction, as continuum surface models compute the capillary terms from a smoothed color
+  function (Brackbill, Kothe and Zemach 1992; Williams, Kothe and Puckett 1998). The filter keeps
+  the volume fractions in $[0, 1]$, their sum and constant states, and only the stress reads the
+  smoothed values, so the scheme and its conservation are unchanged. Without it, the stress of a
+  profile one to three cells wide is rough at the grid scale and drives spurious currents that are
+  largest where the interface runs diagonally to the grid, and with THINC they grow. Two passes
+  widen the region of the force by about two cells.
+- **Energy**, chosen by `SurfaceTension.energy_form`:
+  - `work` (the default): the energy gets the work of the capillary force,
+    $\vec u\cdot[\nabla\cdot\mathbb{T}]_h$, with the cell velocity and the discrete divergence that
+    updated the momentum, also at coarse-fine boundaries. This is $\rho E$ in the five-equation models and
+    in `SIXEQS_IE_NPHASE`; in `SIXEQS` phase $k$ gets $Y_k\,\vec u\cdot[\nabla\cdot\mathbb{T}]_h$.
+    The internal energy is untouched: the surface energy is not tracked, and kinetic plus internal
+    plus surface energy is conserved to truncation error.
+  - `conservative`: the face energy flux $-\vec u_f\cdot\mathbb{T}\cdot\vec e_d$, with
+    $\vec u_f$ the mean of the two cell velocities, so that the total energy is conservative to
+    round-off. The work of the capillary stress on the deformation of the interface,
+    $\mathbb{T}:\nabla\vec u$, then goes to the internal energy, which perturbs the pressure of a
+    moving interface by about $(\gamma - 1)\sigma/\eta$ times the relative change of its area,
+    $\eta$ the interface width. In `SIXEQS` the flux goes to phase 1, and phase 2 takes
+    $Y_2[\nabla\cdot(\vec u\cdot\mathbb{T})]_h$ from it. In `SIXEQS_IE_NPHASE` it reaches the phase
+    internal energies only through the pressure relaxation.
+- **Time step.** $\Delta t \le \sqrt{\bar\rho\,h^3/(2\pi\sigma_{\max})}$ (Brackbill, Kothe and
+  Zemach 1992) on each level, with $\bar\rho$ the smallest mixture density of the cells where
+  $10^{-3} < \alpha_k < 1 - 10^{-3}$ for some phase, $h$ the smallest cell size and
+  $\sigma_{\max}$ the largest $\sigma_{kl}$.
+
+**Initial pressure.** A drop set up with a uniform pressure, or with a smoothed Laplace jump, is
+not at discrete rest, and the mismatch drives pressure waves and spurious currents. With
+`SurfaceTension.init_pressure = 1` (fresh starts only), the initial pressure is corrected on all
+levels at once by solving
+
+$$
+\nabla\cdot(\beta\nabla\delta p) = \nabla\cdot\vec R,
+\qquad
+R_f = \beta_f\left(\tfrac12\big([\nabla\cdot\mathbb{T}]_{h,L} + [\nabla\cdot\mathbb{T}]_{h,R}\big)\cdot\vec e_d - \frac{p_{0,R} - p_{0,L}}{\Delta x_d}\right),
+$$
+
+with $\beta_f = 2/(\rho_L + \rho_R)$ (`init_pressure_weight = density`) or 1 (`unit`),
+$R_f = 0$ on the domain boundaries that are not periodic, Neumann conditions there, and the
+multigrid solver of the Phase-Field step (it stops the run if it does not converge). The pressure
+becomes $p_0 + \delta p$, less the mean of $\delta p$, with the volume fractions, the partial
+densities and the velocity kept; the energies are rebuilt from it, with
+$\alpha_kp_k = \alpha_kp$ in the six-equation models. The run stops if $p + p_{\infty,k} \le 0$
+for a present phase. The projection removes the gradient part of the mismatch between the
+capillary force and the pressure gradient; with Riemann fluxes an exact discrete rest is not
+possible.
+
+Walls are reflecting, which gives a contact angle of 90 degrees. Axisymmetric geometry, other
+contact angles and a surface energy tracked in the total energy (Perigaud and Saurel 2005) are not
+implemented.
+
+Surface tension is experimental. In the verification so far, all four models run with no
+interface treatment, ACDI, CAC and THINC with the default smoothing, also the six-equation models
+with pressure relaxation: the static drop ($32^2$ to $256^2$, with and without the initial
+projection, and with AMR), a drop translating at uniform velocity, the oscillating drop
+(`FIVEEQS`, `SIXEQS` and `SIXEQS_IE_NPHASE`, $32^2$ and $64^2$) and a lens of three liquids
+(N-phase models). Momentum is conserved to round-off in all of them, also across AMR levels, and
+so is the total energy with `energy_form = conservative`. Notes:
+
+- Spurious currents. In the static drop with two smoothing passes they stay small in every model
+  and treatment. As with any continuum surface force without a balanced-force discretization, they
+  do not vanish as the grid is refined, they grow, and with THINC and in the six-equation models
+  they also grow slowly in time. Without smoothing they are larger.
+- Accuracy. The Laplace jump converges at second order, the oscillating drop follows the frequency
+  and the viscous decay of the linear theory, and the lens reaches the Neumann angles. A drop
+  translating at uniform velocity keeps its shape and jump.
+- Energy. With `energy_form = work` the total energy changes by the work of the spurious capillary
+  force, which the currents dissipate into heat in the gas. This is small next to the total energy
+  but not next to the energy of a capillary motion, and it grows with the grid. `conservative`
+  keeps the total energy to round-off with the same currents and the same motion of the drop, but
+  heats or cools the interface by $\mathbb{T}:\nabla\vec u$, a pressure perturbation that grows as
+  the interface gets thinner; `work` is the default.
+- `SIXEQS`. At a drop at rest the phases keep their energies.
+- AMR. Keep the whole interface, where $10^{-3} < \alpha_k < 1 - 10^{-3}$, on one level, with a
+  buffer of a few cells (the `StaticDrop-*` tags do this): the spurious currents are then those of
+  a uniform grid at the finest spacing. A level boundary that cuts the interface gives much larger
+  currents, since the two levels discretize the stress differently on the two sides of the
+  boundary. A level created during the run at an interface starts from the interpolated coarser
+  interface and pressure, which are not in discrete equilibrium on the finer grid; levels present
+  from the start are filled from the initial condition and do not have this transient.
+
 ## Comparing the models
 
 With a single fluid every model reduces to the Euler equations. The models differ only in mixture

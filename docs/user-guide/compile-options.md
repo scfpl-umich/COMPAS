@@ -17,12 +17,16 @@ absent, the default in `include/Macros.H` applies.
 | `DEFINES += -DADVECTION=` | `true` / `false` | `true` | hyperbolic fluxes |
 | `DEFINES += -DDIFFUSION=` | `true` / `false` | `false` | viscous and conductive fluxes |
 | `DEFINES += -DNONCONSERVATIVE=` | `true` / `false` | `true` | non-conservative terms of the model |
+| `DEFINES += -DSURFACE_TENSION=` | `true` / `false` | `false` | surface tension ([Surface tension](models.md#surface-tension)) |
 
 `ADVECTION` and `NONCONSERVATIVE` are normally left `true`. `DIFFUSION=true` applies to every
 model; the six-equation models give each phase its own stress and heat flux
 ([Viscous and conductive fluxes in the six-equation models](models.md#viscous-and-conductive-fluxes-in-the-six-equation-models)).
 `NPHASE` is used by `FIVEEQS_NPHASE` and `SIXEQS_IE_NPHASE`. The two-phase models ignore
 it.
+`SURFACE_TENSION=true` applies to every model, with the coefficients and options of
+[Surface tension](inputs.md#surface-tension); it needs `NONCONSERVATIVE=true`. With
+`SURFACE_TENSION=false` the code is the same as without the option.
 
 The number of state variables in $d$ dimensions is
 

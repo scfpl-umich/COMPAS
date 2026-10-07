@@ -62,6 +62,8 @@ CEXE_HEADERS += Operators_Compressible6Eq_IE_NPhase.H
 CEXE_HEADERS += Physics_Compressible6Eq_IE_NPhase_PhaseField.H
 CEXE_HEADERS += Operators_Compressible6Eq_IE_NPhase_PhaseField.H
 
+CEXE_HEADERS += Physics_SurfaceTension.H
+
 CEXE_HEADERS += Physics_DerivedClasses.H
 
 CEXE_HEADERS += IncludeOperators.H

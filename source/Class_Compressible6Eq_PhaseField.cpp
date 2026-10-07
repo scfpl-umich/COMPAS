@@ -182,11 +182,18 @@ Compressible6Eq_PhaseField::RefluxLev (int lev)
     MultiFab source_fab(grids[lev],dmap[lev],NSTATE,0);
     SaveSourceTermsBeforeReflux(source_fab, dof_new[lev]);
 #endif
+#if (SURFACE_TENSION == true)
+    MultiFab state_before(grids[lev],dmap[lev],NSTATE,0);
+    MultiFab::Copy(state_before, dof_new[lev], 0, 0, NSTATE, 0);
+#endif
     // update lev based on coarse-fine flux mismatch
     flux_reg[lev+1]->Reflux(dof_new[lev], 1.0, 0, 0, NSTATE, geom[lev]);
             
 #if (NONCONSERVATIVE == true)
     RefluxSourceTerms(dof_new[lev],source_fab,lev,flux_reg_nc);
+#endif
+#if (SURFACE_TENSION == true)
+    SurfaceTension_RefluxSourceTerms(dof_new[lev], state_before, lev, flux_reg_nc);
 #endif
     if (relax){
         RelaxRefluxedCells(dof_new[lev], state_unrefluxed);

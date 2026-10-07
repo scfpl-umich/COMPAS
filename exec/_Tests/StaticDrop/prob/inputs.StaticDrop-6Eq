@@ -1,0 +1,185 @@
+# =====================================================================
+# STATIC DROP WITH SURFACE TENSION, two-phase six-equation model
+# A liquid drop (material 2, stiffened gas, density 1, sound speed
+# about 50) of radius 0.4 at rest in a gas (material 1, density 0.1,
+# pressure 10) in the periodic box [-1,1]^2, with sigma = 1, so that the
+# Laplace jump is sigma/R = 2.5. The initial pressure holds the jump,
+# blended with the volume fraction (prob.Laplace_IC = 1). The viscosity
+# of the liquid gives the Laplace number La = sigma rho D/mu^2 = 12000
+# (Popinet 2009), the gas has the same kinematic viscosity. The drop
+# stays at rest up to the spurious currents; drop.csv records the
+# pressure jump, the largest velocity and the momentum, which is
+# conserved to round-off. variants.txt reruns it with the initial
+# pressure projection, the conservative energy form, Phase-Field, THINC,
+# the stress without smoothing and AMR. Nondimensional units.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# Run until either:
+#   - max_step time steps are reached, OR
+#   - stop_time (physical time) is reached
+# =====================================================================
+max_step  = 20              # Maximum number of time steps to advance
+stop_time = 1.0             # Stop time (physical time)
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# =====================================================================
+geometry.prob_lo     = -1.0 -1.0        # Lower bounds (x,y)
+geometry.prob_hi     =  1.0  1.0        # Upper bounds (x,y)
+geometry.is_periodic =  1    1          # Periodic in x and y
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+# BC types:
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 0 0              # Lower BCs in (x,y)
+run.hi_bc = 0 0              # Upper BCs in (x,y)
+
+
+# =====================================================================
+# VERBOSITY SETTINGS
+# =====================================================================
+amr.v       = 1              # AMR verbosity level
+run.sum_var = 0              # Index of the variable summed each step to check for NaNs
+
+
+# =====================================================================
+# GRID RESOLUTION AND REFINEMENT SETTINGS
+# 64 x 64 grid, one level; the amr variant adds two levels
+# =====================================================================
+amr.n_cell      = 64 64      # Base grid resolution (coarsest level)
+amr.max_level   = 0          # Number of refinement levels above the base grid
+amr.ref_ratio   = 2 2 2 2 2 2  # Refinement ratio between levels
+amr.n_error_buf = 2          # Buffer around tagged cells for refinement
+
+
+# =====================================================================
+# GRID CREATION & BLOCKING RULES
+# =====================================================================
+amr.blocking_factor_x = 16   # Minimum grid block size in x
+amr.blocking_factor_y = 16   # Minimum grid block size in y
+amr.max_grid_size     = 32   # Maximum grid patch size
+amr.regrid_int        = 2    # Regrid every N steps
+amr.Interpolater      = "lincc_interp" # Coarse-fine BC interpolater
+
+
+# =====================================================================
+# TIME STEPPING AND CFL CONTROL
+# The capillary time step sqrt(rho dx^3/(2 pi sigma)) is also applied
+# =====================================================================
+run.cfl                     = 0.4         # CFL number
+run.vnn                     = 0.2         # Diffusive limit
+run.do_subcycle             = 1           # Subcycle child levels in time
+run.check_cfl               = 0           # Enable/disable CFL safety checks
+run.timestep_change_limiter = 0           # Limit timestep growth/shrink
+run.TimeIntegrator          = "TVD-RK3"   # Time integration scheme
+
+
+# =====================================================================
+# REFLUXING CONTROL
+# Ensures conservation across coarse-fine boundaries
+# =====================================================================
+run.do_reflux = 1                         # Enable refluxing
+
+
+# =====================================================================
+# REFINEMENT TAGGING SETTINGS
+# Refine where 0.001 < alpha_1 < 0.999 (the interface)
+# =====================================================================
+run.refine.ref_vars      = a1
+
+run.refine.a1.max_level   = 10             # Maximum refinement allowed by tag
+run.refine.a1.value_range = 0.001 0.999  0.001 0.999  0.001 0.999  0.001 0.999  0.001 0.999  0.001 0.999   # (low, high) pair per level
+
+
+# =====================================================================
+# PLOTFILE OUTPUT CONTROL
+# =====================================================================
+amr.case_name        = ./plot/StaticDrop-6Eq   # Output directory and file prefix
+amr.plot_int         = 1000000      # Frequency of plotfile generation
+amr.t_write_interval = 0.1          # A plotfile every 0.1 time units
+
+run.output_vars = rho u v P a1      # Variables to include in plotfiles
+
+run.user_output_int = 1             # Pressure jump, spurious currents and integrals every coarse step
+
+
+# =====================================================================
+# CHECKPOINT CONTROL
+# =====================================================================
+amr.chk_file = ./checkpoints/chk    # Prefix for checkpoint files
+amr.chk_int  = -1                   # No checkpoints
+
+
+# =====================================================================
+# SURFACE TENSION (SURFACE_TENSION = true)
+# =====================================================================
+SurfaceTension.sigma                = 1.0          # sigma_12
+SurfaceTension.energy_form          = work         # work or conservative
+SurfaceTension.init_pressure        = 0            # 1: project the initial pressure
+SurfaceTension.init_pressure_weight = density      # density (beta = 1/rho) or unit
+SurfaceTension.smoothing            = 2            # passes of the 1-2-1 filter on the volume fractions of the stress
+
+
+# =====================================================================
+# PHYSICS OPTIONS
+# =====================================================================
+Physics.pressure_relaxation = 1      # Instantaneous pressure relaxation
+Physics.RiemannSolver = "HLLC"       # Riemann solver type
+
+PhaseField.phase_field    = 0          # Phase-Field regularization of the interfaces (pf variant)
+PhaseField.cfl            = 0.3        # Phase-field CFL number
+PhaseField.Mechanism      = "ACDI"     # Phase-Field model
+PhaseField.ID_ExplicitRC  = 1          # 0 implicit, 1 explicit Phase-Field treatment
+PhaseField.Eta_Multiplier = 1.0        # Initial interface width, eta = 1 finest cell
+
+FiniteVolume.Scheme = "MUSCL-MC"     # FV reconstruction scheme
+
+FiniteVolume.THINC = 0               # 1 for THINC reconstruction of the interfaces (thinc variant)
+FiniteVolume.THINC.Beta = 2.3
+FiniteVolume.THINC.EPS = 1.0e-4
+FiniteVolume.THINC.UseNormal = 1
+FiniteVolume.THINC.NormalThreshold = 0.4
+
+
+# =====================================================================
+# PROBLEM
+# =====================================================================
+prob.R          = 0.4                # Drop radius
+prob.xc         = 0.0                # Drop center
+prob.yc         = 0.0
+prob.rho_1      = 0.1                # Gas density
+prob.rho_2      = 1.0                # Liquid density
+prob.P0         = 10.0               # Gas pressure
+prob.u0         = 0.0                # Drop and gas velocity
+prob.v0         = 0.0
+prob.Laplace_IC = 1                  # 1: the initial pressure holds the Laplace jump
+
+
+# =====================================================================
+# MATERIALS
+# Stiffened gas (EOS = 1): material 1 an ideal gas, material 2 a
+# stiffened liquid with sound speed about 50. Liquid viscosity from
+# La = 12000; the gas has the same kinematic viscosity. No conduction.
+# =====================================================================
+prob.EOS.EOS     = 1
+prob.EOS.gamma_1 = 1.4
+prob.EOS.gamma_2 = 4.4
+prob.EOS.pinf_1  = 0.0
+prob.EOS.pinf_2  = 568.0
+prob.EOS.cv_1    = 1.0
+prob.EOS.cv_2    = 1.0
+
+prob.EOS.mu_1    = 0.00081650                # Shear viscosities
+prob.EOS.mu_2    = 0.0081650
+prob.EOS.muB_1   = 0.0                       # Bulk viscosities
+prob.EOS.muB_2   = 0.0
+prob.EOS.kappa_1 = 0.0                       # Thermal conductivities
+prob.EOS.kappa_2 = 0.0
+

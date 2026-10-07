@@ -153,7 +153,7 @@ inputs file the run reads (`prob/inputs` or `prob/inputs.<label>`).
 
 ## What the cases cover
 
-The 13 case directories hold 36 base runs in 27 builds; with their variants they make 247 runs.
+The 14 case directories hold 40 base runs in 31 builds; with their variants they make 275 runs.
 
 | Directory | Builds | Base runs (labels) | What it tests |
 |---|---|---|---|
@@ -162,6 +162,7 @@ The 13 case directories hold 36 base runs in 27 builds; with their variants they
 | `Sod` | 5Eq, 5Eq-N, 6Eq, 6Eq-N | `Sod-5Eq`, `Sod-5Eq-N`, `Sod-6Eq`, `Sod-6Eq-N` | The 3D Sod shock tube with AMR along x, y and z, the boundary conditions, and the two-material water-air shock tube |
 | `NASG` | 5Eq, 5Eq-N, 6Eq, 6Eq-N | `NASG-5Eq`, `NASG-5Eq-N`, `NASG-6Eq`, `NASG-6Eq-N` | The Noble-Abel stiffened gas: the air-water shock tube, a water shock tube and a water drop |
 | `ShuOsher-5Eq`, `ShockVortex-5Eq`, `IsentropicVortex-5Eq` | one each | the directory name | The reconstruction schemes on the Shu-Osher tube, a vortex through a stationary shock with AMR, and the convergence case with WENO5 |
+| `StaticDrop` | 5Eq, 5Eq-N, 6Eq, 6Eq-N | `StaticDrop-5Eq`, `StaticDrop-5Eq-N`, `StaticDrop-6Eq`, `StaticDrop-6Eq-N` | Surface tension (`-DSURFACE_TENSION=true`) on each model, with the initial pressure projection, both energy forms, Phase-Field, THINC, the stress without smoothing and AMR |
 | `COMPAS-STL-5Eq`, `RichtmyerMeshkov-5Eq`, `RichtmyerMeshkov-Multimode-5Eq`, `Jet-Inflow-5Eq`, `NonsphericalCollapse-6Eq` | one each | the directory name | One user hook or feature each: the STL reader, the user output with checkpoint and restart, run-time static GPU arrays, a user boundary condition, user refinement tagging in 3D |
 | `RayleighTaylor` | 2D, 3D (`BUILD` sets `DIM`) | `RayleighTaylor-5Eq`, `RayleighTaylor-3D-5Eq` | A user source term, in 2D and 3D |
 

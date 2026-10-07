@@ -447,6 +447,7 @@ COMPAS::InitData ()
         const Real time = 0.0;
         InitFromScratch(time);
         AverageDown(dof_new);
+        PostInitFromScratch();
 
         if (chk_int > 0) {
             WriteCheckpointFile();

@@ -39,6 +39,12 @@ IsentropicVortex-5Eq
 # relaxed once (conservation, passive phases keeping their volume fraction, sum of the volume
 # fractions, pressure equality, iterations) and stepped, for each equation of state ---
 
+# --- Surface tension (SURFACE_TENSION = true), one static drop per model (builds 5Eq, 5Eq-N,
+# 6Eq, 6Eq-N): Laplace jump, spurious currents and momentum; variants for the initial pressure
+# projection, the conservative energy form, Phase-Field, THINC, the stress without smoothing and
+# AMR. The N-phase builds have a third, absent phase ---
+StaticDrop
+
 # --- STL reader test ---
 COMPAS-STL-5Eq
 

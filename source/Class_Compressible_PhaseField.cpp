@@ -64,6 +64,10 @@
 #include <Operators_Compressible6Eq_IE_NPhase_PhaseField.H>
 #endif
 
+#if (SURFACE_TENSION == true)
+#include <Physics_SurfaceTension.H>
+#endif
+
 
 
 Compressible_PhaseField::~Compressible_PhaseField ()
@@ -111,6 +115,10 @@ Compressible_PhaseField::ReadParameters_Derived ()
     }
 
     NGROW = h_parm->FiniteVolume_Parm.Num_Grow;
+#if (SURFACE_TENSION == true)
+    // The capillary stress reads the volume fractions on one ghost layer, after the smoothing
+    NGROW = amrex::max(NGROW, 1 + h_parm->Physics_Parm.SurfaceTension_Parm.smoothing);
+#endif
 }
 
 void 
@@ -3143,7 +3151,7 @@ Compressible_PhaseField::DefineFaceFluxes (Array<MultiFab,AMREX_SPACEDIM>& fluxe
 
 
 // Face fluxes of level lev from the state U with ghost cells: in fluxes the conservative fluxes per
-// unit area (hyperbolic minus diffusive), in fluxes_nc the face quantities of the
+// unit area (hyperbolic minus diffusive minus capillary), in fluxes_nc the face quantities of the
 // non-conservative terms, and the wave speeds in c_max[lev] (reset at stage 0). time is the time of
 // the stage state. Each tile computes the faces of nodaltilebox, which no other tile has, and the
 // c_max of a cell is written only from its own faces (i,j,k), which belong to the same tile: no
@@ -3180,6 +3188,12 @@ BL_PROFILE("ComputeFaceFluxes()");
 
     Parm const* lparm = d_parm;
 
+#if (SURFACE_TENSION == true)
+    // Volume fractions of the capillary stress, smoothed or not, on one ghost layer
+    MultiFab Alpha_ST(grids[lev], dmap[lev], ST_NALPHA, 1);
+    SurfaceTension_VolumeFractions(U, Alpha_ST, 1);
+#endif
+
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
@@ -3189,6 +3203,9 @@ BL_PROFILE("ComputeFaceFluxes()");
             // Pull the data into an array
             Array4<Real const> statein   = U.const_array(mfi);
             Array4<Real      > c_max_new = c_max_lev.array(mfi);
+#if (SURFACE_TENSION == true)
+            Array4<Real const> alpha_st  = Alpha_ST.const_array(mfi);
+#endif
             for (int idim = 0; idim < AMREX_SPACEDIM; idim++){
                 Array4<Real> flux = fluxes[idim].array(mfi);
 #if (NONCONSERVATIVE == true)
@@ -3235,10 +3252,24 @@ BL_PROFILE("ComputeFaceFluxes()");
 #endif
                     c_max_new(i,j,k,1) = std::max(dmax, c_max_new(i,j,k,1));
 #endif
+#if (SURFACE_TENSION == true)
+                    // Capillary stress: momentum (and conservative energy) flux with the sign of the
+                    // diffusive flux, and the NC components (after the hyperbolic and diffusive kernels)
+                    Array<Real,NSTATE> fhatST;
+                    FDM_Conservative2FluxCapillary_K(i, j, k,
+                                                     fhatST, fhatNC,
+                                                     statein, alpha_st,
+                                        AMREX_D_DECL(dx,dy,dz),
+                                                     idim,
+                                                     lparm->Physics_Parm.SurfaceTension_Parm);
+#endif
                     for (int iState = 0; iState < NSTATE; iState++){
                         flux(i,j,k,iState) = fhat[iState];
 #if (DIFFUSION == true)
                         flux(i,j,k,iState) += -fhatD[iState];
+#endif
+#if (SURFACE_TENSION == true)
+                        flux(i,j,k,iState) += -fhatST[iState];
 #endif
                     }
 #if (NONCONSERVATIVE == true)
@@ -3383,6 +3414,14 @@ BL_PROFILE("FluxDivergence()");
                        AMREX_D_DECL(dx       , dy       , dz       ),
                                     *lparm,
                                     lparm->Physics_Parm);
+#if (SURFACE_TENSION == true)
+                // Capillary energy from the same discrete divergence of T that updated the momentum
+                FVM_SurfaceIntegral_NC_Capillary(i, j, k,
+                                                 dUdt, statein,
+                                    AMREX_D_DECL(fluxxNC_c, fluxyNC_c, fluxzNC_c),
+                                    AMREX_D_DECL(dx       , dy       , dz       ),
+                                                 lparm->Physics_Parm.SurfaceTension_Parm);
+#endif
             });
 }
 #endif
@@ -4496,6 +4535,15 @@ Compressible_PhaseField::EstTimeStep (Real& dt_est, int lev, Real const& time)
         dt_est = amrex::min(dt_est, vnn*dx[idim]*dx[idim]/est_diff);
 #endif
     }
+
+#if (SURFACE_TENSION == true)
+    // Capillary time step (Brackbill, Kothe and Zemach 1992)
+    Real est_cap = SurfaceTension_EstTimeStep(lev);
+    if (time == 0.0 && est_cap < std::numeric_limits<Real>::max()){
+        Print() << "Initial capillary time step on level " << lev << " is " << est_cap << "\n";
+    }
+    dt_est = amrex::min(dt_est, est_cap);
+#endif
 }
 
 void
