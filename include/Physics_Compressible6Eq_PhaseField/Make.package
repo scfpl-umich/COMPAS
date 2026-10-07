@@ -12,4 +12,3 @@ CEXE_headers += FluxPhaseField_Mixture_Compressible6Eq_PhaseField.H
 CEXE_headers += FluxPhasePhaseField2FluxPhaseField_Mixture_Compressible6Eq_PhaseField.H
 CEXE_headers += FluxPhaseField_Compressible6Eq_PhaseField.H
 
-CEXE_headers += PhaseField_RefluxSourceTerms_Compressible6Eq_PhaseField.H

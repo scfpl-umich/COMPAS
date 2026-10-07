@@ -10,11 +10,28 @@
 #include<Macros.H>
 #if (PHYSICS==SIXEQS)
 
+// Instantaneous pressure-temperature relaxation, in closed form (Huang 2026, Remark 3.7.1): a
+// quadratic for the relaxed pressure, the volume fractions at the common temperature, and the
+// pressure again from the conservation of E_1 + E_2. The root of the quadratic a p^2 + b p + c = 0
+// is the larger one, computed as -2c/(b + sqrt(b^2 - 4ac)) when b > 0: (-b + sqrt(b^2 - 4ac))/(2a)
+// loses the digits of a root that is small against the pinf_k scale (4ac/b^2 is 1e-3 to 1e-5 for a
+// gas and a liquid near 1 bar, and 1e-9 for a gas near vacuum, where it gave temperatures off by
+// 100 % and, with NASG, a liquid at its covolume limit). The closed form is kept wherever it has a
+// pressure-temperature equilibrium: alpha_k rho_k >= 0, a finite result with the pressure above
+// -pinf_k and a positive temperature for every phase with mass, and (NASG) every phase with mass
+// below its covolume limit, alpha_kR > b_k alpha_k rho_k. There is no check of the volume fractions
+// against [0, 1]: where these conditions hold, they lie in [0, 1] (alpha_kR = W_k/(W_1 + W_2) with
+// W_k = w_k (P + pinf_l) >= 0, l the other phase, for the stiffened gas). Where the equilibrium does
+// not exist (a mixture internal energy too low for a positive common temperature, a negative mass,
+// or no free volume left by the covolumes), the cell is relaxed in pressure only
+// (Relaxation_Pressure_Instantaneous, Path + 10).
 AMREX_GPU_DEVICE
 AMREX_FORCE_INLINE
 void Relaxation_PressureTemperature_Instantaneous(amrex::Array<amrex::Real,5+AMREX_SPACEDIM>& ConservativeR,
                                                   amrex::Array<amrex::Real,5+AMREX_SPACEDIM> const& Conservative,
-                                                  Parm const& EOS_Parameter)
+                                                  Parm const& EOS_Parameter,
+                                                  int& Iter,
+                                                  int& Path)
 {
     amrex::Array<amrex::Real,5+AMREX_SPACEDIM> Primitive;
     Conservative2Primitive(Primitive,
@@ -50,6 +67,8 @@ void Relaxation_PressureTemperature_Instantaneous(amrex::Array<amrex::Real,5+AMR
     amrex::Real Alpha2R;
     amrex::Real Alpha1_p1R;
     amrex::Real Alpha2_p2R;
+    // The relaxed pressure, from the conservation of E_1 + E_2
+    amrex::Real P_Relaxed;
     if (EOS_Parameter.C1 > 0.0 || EOS_Parameter.C2 > 0.0){
         // NASG (b_1 or b_2 > 0). At common p and T, v_k = cv_k T/(A_k (p + pinf_k)) + b_k and
         // e_k = cv_k T (A_k p + B_k)/(A_k (p + pinf_k)) + q_k. With w_k = alpha_k rho_k cv_k/A_k,
@@ -74,7 +93,8 @@ void Relaxation_PressureTemperature_Instantaneous(amrex::Array<amrex::Real,5+AMR
         amrex::Real aPT = Phi*(w1*A1 + w2*A2);
         amrex::Real bPT = Phi*(w1*(A1*pinf2 + B1) + w2*(A2*pinf1 + B2)) - E*(w1 + w2);
         amrex::Real cPT = Phi*(w1*B1*pinf2 + w2*B2*pinf1) - E*(w1*pinf2 + w2*pinf1);
-        amrex::Real pR = (-bPT + std::sqrt(bPT*bPT - 4.0*aPT*cPT))/(2.0*aPT);
+        amrex::Real dPT = std::sqrt(bPT*bPT - 4.0*aPT*cPT);
+        amrex::Real pR = (bPT > 0.0) ? -2.0*cPT/(bPT + dPT) : (-bPT + dPT)/(2.0*aPT);
         amrex::Real W1 = w1*(pR + pinf2);
         amrex::Real W2 = w2*(pR + pinf1);
         Alpha1R = b1*Alpha1_rho1 + Phi*W1/(W1 + W2);
@@ -91,6 +111,7 @@ void Relaxation_PressureTemperature_Instantaneous(amrex::Array<amrex::Real,5+AMR
         amrex::Real Phi1R = NASG_Xi(Alpha1R, Alpha1_rho1, b1)*Alpha1R;
         amrex::Real Phi2R = NASG_Xi(Alpha2R, Alpha2_rho2, b2)*Alpha2R;
         pR = (E - B1*Phi1R - B2*Phi2R)/(A1*Phi1R + A2*Phi2R);
+        P_Relaxed  = pR;
         Alpha1_p1R = Alpha1R*pR;
         Alpha2_p2R = Alpha2R*pR;
     }
@@ -110,7 +131,8 @@ void Relaxation_PressureTemperature_Instantaneous(amrex::Array<amrex::Real,5+AMR
                         + (C1*(A1 + 1.0)/A1*Alpha1_rho1 + C2*(A2 + 1.0)/A2*Alpha2_rho2)*B2/(A2 + 1.0)*B1/(A1 + 1.0)
                         + (C1*D2/A1*B2/(A2 + 1.0) + C2*D1/A2*B1/(A1 + 1.0))*Alpha1_rho1*Alpha2_rho2
                         - rho_e*(C1/A1*B2/(A2 + 1.0)*Alpha1_rho1 + C2/A2*B1/(A1 + 1.0)*Alpha2_rho2);
-        amrex::Real pR = (-bPT + std::sqrt(bPT*bPT - 4.0*aPT*cPT))/(2.0*aPT);
+        amrex::Real dPT = std::sqrt(bPT*bPT - 4.0*aPT*cPT);
+        amrex::Real pR = (bPT > 0.0) ? -2.0*cPT/(bPT + dPT) : (-bPT + dPT)/(2.0*aPT);
         Alpha1R = C1/A1*Alpha1_rho1*(pR + B2/(A2 + 1.0))/(C1/A1*Alpha1_rho1*(pR + B2/(A2 + 1.0)) + C2/A2*Alpha2_rho2*(pR + B1/(A1 + 1.0)));
         Alpha2R = C2/A2*Alpha2_rho2*(pR + B1/(A1 + 1.0))/(C1/A1*Alpha1_rho1*(pR + B2/(A2 + 1.0)) + C2/A2*Alpha2_rho2*(pR + B1/(A1 + 1.0)));
         if (std::isnan(Alpha1R) && !std::isnan(Alpha2R)){
@@ -123,17 +145,32 @@ void Relaxation_PressureTemperature_Instantaneous(amrex::Array<amrex::Real,5+AMR
         Alpha1R /= Sum_AlphaR;
         Alpha2R /= Sum_AlphaR;
         pR = (A1*Alpha1_p1 + A2*Alpha2_p2 + B1*(Alpha1 - Alpha1R) + B2*(Alpha2 - Alpha2R))/(A1*Alpha1R + A2*Alpha2R);
+        P_Relaxed  = pR;
         Alpha1_p1R = Alpha1R*pR;
         Alpha2_p2R = Alpha2R*pR;
     }
 
-    if (std::isnan(Alpha1R) && std::isnan(Alpha2R)){
-        Alpha1R    = Alpha1;
-        Alpha2R    = Alpha2;
-        Alpha1_p1R = Alpha1_p1;
-        Alpha2_p2R = Alpha2_p2;
+    // The pressure from the energy above -pinf_k where alpha_k rho_k > 0, and a positive phase
+    // temperature there, (alpha_k p_k + alpha_k pinf_k) > 0 (the two agree where alpha_kR > 0)
+    amrex::Real pinf_1 = B1/(A1 + 1.0);
+    amrex::Real pinf_2 = B2/(A2 + 1.0);
+    bool admissible = (Alpha1_rho1 >= 0.0) && (Alpha2_rho2 >= 0.0)
+                   && Relax_Finite(Alpha1R) && Relax_Finite(Alpha2R)
+                   && Relax_Finite(Alpha1_p1R) && Relax_Finite(Alpha2_p2R);
+    if (admissible && Alpha1_rho1 > 0.0) { admissible = (P_Relaxed + pinf_1 > 0.0) && (Alpha1_p1R + Alpha1R*pinf_1 > 0.0); }
+    if (admissible && Alpha2_rho2 > 0.0) { admissible = (P_Relaxed + pinf_2 > 0.0) && (Alpha2_p2R + Alpha2R*pinf_2 > 0.0); }
+    // NASG: below the covolume limit (not evaluated without a covolume)
+    if (admissible && Alpha1_rho1 > 0.0 && EOS_Parameter.C1 > 0.0) { admissible = (Alpha1R > EOS_Parameter.C1*Alpha1_rho1); }
+    if (admissible && Alpha2_rho2 > 0.0 && EOS_Parameter.C2 > 0.0) { admissible = (Alpha2R > EOS_Parameter.C2*Alpha2_rho2); }
+
+    if (!admissible){
+        Relaxation_Pressure_Instantaneous(ConservativeR, Conservative, EOS_Parameter, Iter, Path);
+        Path += 10;
+        return;
     }
 
+    Iter = 0;
+    Path = Relax_PathModel;
     State2Primitive(Primitive,
                     Alpha1_rho1, Alpha2_rho2,
        AMREX_D_DECL(u, v, w),
@@ -143,6 +180,16 @@ void Relaxation_PressureTemperature_Instantaneous(amrex::Array<amrex::Real,5+AMR
                            Primitive,
                            EOS_Parameter);
     
+}
+
+AMREX_GPU_DEVICE
+AMREX_FORCE_INLINE
+void Relaxation_PressureTemperature_Instantaneous(amrex::Array<amrex::Real,5+AMREX_SPACEDIM>& ConservativeR,
+                                                  amrex::Array<amrex::Real,5+AMREX_SPACEDIM> const& Conservative,
+                                                  Parm const& EOS_Parameter)
+{
+    int Iter, Path;
+    Relaxation_PressureTemperature_Instantaneous(ConservativeR, Conservative, EOS_Parameter, Iter, Path);
 }
 
 #endif

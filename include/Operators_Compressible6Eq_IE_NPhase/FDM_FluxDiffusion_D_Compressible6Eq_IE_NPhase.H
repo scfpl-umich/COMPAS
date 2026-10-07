@@ -14,7 +14,8 @@
 // Face quantities of FluxDiffusion from the cell values of FDM_Conservative2FluxDiffusion_D:
 //   - the face velocity and velocity gradient (FDM_FaceVelocityGradient_D, V[b][s] the
 //     velocity component b at the stencil point s);
-//   - the face viscosities, the average of the mixture viscosities of the cells m and c;
+//   - the face viscosities, the harmonic mean of the mixture viscosities of the cells m and c
+//     (PhaseDiffusion_FaceViscosity_D);
 //   - per phase, the temperature difference across the face, the harmonic face weight and
 //     the thermal diffusivity bound for the time step (where the phase conducts).
 // =======================================
@@ -50,8 +51,8 @@ void FDM_FluxDiffusion_D(amrex::Array<amrex::Real,NSTATE>& Flux,
                                ID_Dimension);
 
     amrex::Real mu, mub;
-    Interpolation2Face_Linear_D(mu, mu_m, mu_c);
-    Interpolation2Face_Linear_D(mub, mub_m, mub_c);
+    PhaseDiffusion_FaceViscosity_D(mu, mu_m, mu_c);
+    PhaseDiffusion_FaceViscosity_D(mub, mub_m, mub_c);
 
     amrex::Array<amrex::Real,AMREX_SPACEDIM> const dX = {AMREX_D_DECL(dx, dy, dz)};
     amrex::Array<amrex::Real,NPHASE> Weight, Grad_T;

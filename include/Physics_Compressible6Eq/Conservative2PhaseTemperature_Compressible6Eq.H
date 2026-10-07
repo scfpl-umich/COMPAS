@@ -13,9 +13,11 @@
 
 // =======================================
 // Temperature of each phase from its own EOS,
-//   T_k = (alpha_k rho_k e_k - alpha_k rho_k D_k - alpha_k B_k/(1 + A_k))/(alpha_k rho_k cv_k),
-// with alpha_k rho_k e_k = alpha_k rho_k E_k - alpha_k rho_k |u|^2/2. Present[k] tells where
-// phase k is present (PhaseDiffusion_Present); T_k is set to 0 where it is not.
+//   T_k = (alpha_k rho_k e_k - alpha_k rho_k D_k - phi_k B_k/(1 + A_k))/(alpha_k rho_k cv_k),
+// with alpha_k rho_k e_k = alpha_k rho_k E_k - alpha_k rho_k |u|^2/2 and phi_k = alpha_k - b_k alpha_k rho_k
+// (NASG, D_k = q_k: T_k = (p_k + pinf_k)(1/rho_k - b_k)/((gamma_k - 1) cv_k); phi_k = alpha_k
+// without a covolume). Present[k] tells where phase k is present (PhaseDiffusion_Present); T_k
+// is set to 0 where it is not.
 // Index 0 is phase 1 and index 1 is phase 2.
 // =======================================
 

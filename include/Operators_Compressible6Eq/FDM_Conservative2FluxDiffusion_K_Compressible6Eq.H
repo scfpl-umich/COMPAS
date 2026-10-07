@@ -14,7 +14,8 @@
 // Viscous and conductive flux on the lower face of cell (i,j,k) in direction ID_Dimension.
 // Gathers the face stencil (FaceStencil::OffsetOnFace, 1 ghost cell with the edge
 // neighbors) and calls FDM_Conservative2FluxDiffusion_D. Besides the conservative flux, it
-// writes the viscous energy flux (u.tau)_n to the non-conservative component
+// writes the viscous energy flux (u.tau)_n (plus the heat flux of the mixture with the
+// pressure-temperature relaxation) to the non-conservative component
 // INDEX_NC_ViscousWork; the other components of FluxNC are left as the hyperbolic kernel set
 // them, so it runs after it.
 // =======================================

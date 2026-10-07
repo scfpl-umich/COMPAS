@@ -15,6 +15,5 @@
 #include<FluxPhasePhaseField2FluxPhaseField_Mixture_Compressible6Eq_PhaseField.H>
 #include<FluxPhaseField_Compressible6Eq_PhaseField.H>
 
-#include<PhaseField_RefluxSourceTerms_Compressible6Eq_PhaseField.H>
 
 #endif

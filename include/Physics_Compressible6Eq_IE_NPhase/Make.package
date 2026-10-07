@@ -40,5 +40,3 @@ CEXE_headers += ComputeDerivedVar_Compressible6Eq_IE_NPhase.H
 CEXE_headers += EnergyCorrection_Compressible6Eq_IE_NPhase.H
 
 CEXE_headers += RelaxationPressure_Instantaneous_Compressible6Eq_IE_NPhase.H
-
-CEXE_headers += RefluxSourceTerms_Compressible6Eq_IE_NPhase.H

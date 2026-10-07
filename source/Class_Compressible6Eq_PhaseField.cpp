@@ -151,7 +151,8 @@ Compressible6Eq_PhaseField::RefluxSourceTerms (amrex::MultiFab & new_dof,
                 dofArray(i,j,k,INDEX_Energy2)         += -(Alpha2_rho2/rho*Vel_Dot_Grad_Alpha1_p1 - Alpha1_rho1/rho*Vel_Dot_Grad_Alpha2_p2);
                 dofArray(i,j,k,INDEX_VolumeFraction1) += Alpha1*Div_Vel;
 #if (DIFFUSION == true)
-                // The conservative reflux corrected [div(u.tau)]_h in phase 1; move the share of
+                // The conservative reflux corrected [div(u.tau)]_h (and the heat of the mixture
+                // with the pressure-temperature relaxation) in phase 1; move the share of
                 // phase 2, Y_2 times the correction, as FVM_SurfaceIntegral_NC does (the cell
                 // dissipation Phi_k has no reflux correction)
                 amrex::Real Div_Work = -xiArray(i,j,k,INDEX_NC_ViscousWork);
@@ -169,6 +170,14 @@ void
 Compressible6Eq_PhaseField::RefluxLev (int lev)
 {
 #if (PHYSICS==SIXEQS)
+    // The stages end with the relaxation (PostTimeStage), but the reflux corrects the coarse cells
+    // next to the finer level after that, so those cells are relaxed again at the end
+    const bool relax = h_parm->Physics_Parm.relaxation;
+    MultiFab state_unrefluxed;
+    if (relax){
+        state_unrefluxed.define(grids[lev],dmap[lev],NSTATE,0);
+        MultiFab::Copy(state_unrefluxed, dof_new[lev], 0, 0, NSTATE, 0);
+    }
 #if (NONCONSERVATIVE == true)
     MultiFab source_fab(grids[lev],dmap[lev],NSTATE,0);
     SaveSourceTermsBeforeReflux(source_fab, dof_new[lev]);
@@ -179,6 +188,9 @@ Compressible6Eq_PhaseField::RefluxLev (int lev)
 #if (NONCONSERVATIVE == true)
     RefluxSourceTerms(dof_new[lev],source_fab,lev,flux_reg_nc);
 #endif
+    if (relax){
+        RelaxRefluxedCells(dof_new[lev], state_unrefluxed);
+    }
 #endif
 }
 
@@ -274,6 +286,14 @@ void
 Compressible6Eq_PhaseField::PhaseField_RefluxLev (int lev)
 {
 #if (PHYSICS==SIXEQS)
+    // As in RefluxLev: the Phase-Field stages end with the relaxation, so the refluxed cells are
+    // relaxed again at the end
+    const bool relax = h_parm->Physics_Parm.relaxation;
+    MultiFab state_unrefluxed;
+    if (relax){
+        state_unrefluxed.define(grids[lev],dmap[lev],NSTATE,0);
+        MultiFab::Copy(state_unrefluxed, dof_new[lev], 0, 0, NSTATE, 0);
+    }
 #if (NONCONSERVATIVE == true)
     MultiFab source_fab(grids[lev],dmap[lev],NSTATE,0);
     PhaseField_SaveSourceTermsBeforeReflux(source_fab, dof_new[lev]);
@@ -284,6 +304,47 @@ Compressible6Eq_PhaseField::PhaseField_RefluxLev (int lev)
 #if (NONCONSERVATIVE == true)
     PhaseField_RefluxSourceTerms(dof_new[lev],source_fab,lev,flux_reg_nc);
 #endif
+    if (relax){
+        RelaxRefluxedCells(dof_new[lev], state_unrefluxed);
+    }
+#endif
+}
+
+
+void
+Compressible6Eq_PhaseField::RelaxRefluxedCells (MultiFab & mf,
+                                                MultiFab const & state_unrefluxed)
+{
+#if (PHYSICS==SIXEQS)
+    // Relax a copy of the level, and take the relaxed state only in the cells that the reflux
+    // changed (the coarse cells next to the finer level), so that every other cell keeps its bits
+    MultiFab relaxed(mf.boxArray(), mf.DistributionMap(), NSTATE, 0);
+    MultiFab::Copy(relaxed, mf, 0, 0, NSTATE, 0);
+    Relaxation(relaxed, d_parm);
+
+#ifdef AMREX_USE_OMP
+#pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+    for (MFIter mfi(mf,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const Box& bx = mfi.tilebox();
+        Array4<Real      > const& state   = mf.array(mfi);
+        Array4<Real const> const& before  = state_unrefluxed.const_array(mfi);
+        Array4<Real const> const& relaxedArray = relaxed.const_array(mfi);
+        amrex::ParallelFor(bx,
+        [=] AMREX_GPU_DEVICE (int i, int j, int k)
+        {
+            bool refluxed = false;
+            for (int iState = 0; iState < NSTATE; ++iState){
+                refluxed = refluxed || (state(i,j,k,iState) != before(i,j,k,iState));
+            }
+            if (refluxed){
+                for (int iState = 0; iState < NSTATE; ++iState){
+                    state(i,j,k,iState) = relaxedArray(i,j,k,iState);
+                }
+            }
+        });
+    }
 #endif
 }
 
@@ -378,7 +439,6 @@ Compressible6Eq_PhaseField::Relaxation (MultiFab& mf,
 				                        Parm const* parm)
 {
 #if (PHYSICS==SIXEQS)
-	amrex::Real ID_Implicit = h_parm->Physics_Parm.pressure_relaxation_implicit;
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif

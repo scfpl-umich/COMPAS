@@ -18,7 +18,8 @@ can be told apart.*
 
 The shock tube of Sod (J. Comput. Phys. 27, 1978) starts from gas at rest with $\rho = 1$,
 $P = 1$ for $x < 0.5$ and $\rho = 0.125$, $P = 0.1$ beyond, with $\gamma = 1.4$.
-`exec/_Tests/Sod-5Eq`, `Sod-5Eq-N`, `Sod-6Eq` and `Sod-6Eq-N` run it with the four models, on 256
+`exec/_Tests/Sod` runs it with the four models, one build each (`BUILD=5Eq`, the default, `5Eq-N`,
+`6Eq` and `6Eq-N`, for the base runs `Sod-5Eq`, `Sod-5Eq-N`, `Sod-6Eq` and `Sod-6Eq-N`), on 256
 base cells along the tube with two levels of refinement, MUSCL (minmod), HLLC and TVD-RK3.
 Material 1 fills the tube; material 2 is absent in `Sod-5Eq` and a trace of $10^{-6}$ in the
 others. All four place the rarefaction, the contact and the shock where the exact solution has
@@ -37,11 +38,11 @@ finest AMR level along $x$.*
 The setup of Saurel and Abgrall (J. Comput. Phys. 150, 1999) is a 1 m tube with a diaphragm at
 $x = 0.7$ m, water at 1000 kg/m$^3$ and $10^9$ Pa to its left (stiffened gas, $\gamma = 4.4$,
 $P_\infty = 6 \times 10^8$ Pa) and air at 50 kg/m$^3$ and $10^5$ Pa to its right
-($\gamma = 1.4$). The Sod cases run it through their `prob.*` parameters, with the grid and
+($\gamma = 1.4$). The Sod case runs it through its `prob.*` parameters, with the grid and
 methods of Sod:
 
 ```bash
-cd exec/_Tests/Sod-5Eq && make -j4
+cd exec/_Tests/Sod && make -j4
 mpirun -n 4 ./main3d.gnu.MPI.ex prob/inputs \
   stop_time=2.4e-4 amr.t_write_interval=2.4e-5 \
   prob.rho_L=1000 prob.P_L=1e9 prob.rho_R=50 prob.P_R=1e5 \
@@ -50,14 +51,65 @@ mpirun -n 4 ./main3d.gnu.MPI.ex prob/inputs \
   prob.EOS.gamma_2=1.4 prob.EOS.pinf_2=0.0
 ```
 
-The same line runs `Sod-6Eq`; `Sod-5Eq-N` and `Sod-6Eq-N` take the materials as arrays,
+The other models take the same keys with their build and inputs file, for `SIXEQS`
+`make -j4 BUILD=6Eq` and `mpirun -n 4 ./main3d.gnu.MPI.6Eq.ex prob/inputs.Sod-6Eq`; the N-phase
+builds `5Eq-N` and `6Eq-N` take the materials as arrays,
 `prob.EOS.gamma="4.4 1.4" prob.EOS.pinf="6e8 0.0"`. All four models reproduce the rarefaction into
 the water, the shock into the air and the plateaus, with a brief dip at the tail of the
-rarefaction that is largest in the five-equation models. Pressure and velocity stay uniform across
-the contact, which moves at about 480 m/s, and the volume fraction spreads over about twenty finest
-cells. At the contact (inset) the six-equation models, which relax the pressures of two phase
-energies, go from the water density to the shocked-air density directly, while the five-equation
-models dip below it on the air side.
+rarefaction that is largest in the five-equation models on this grid. Pressure and velocity stay
+uniform across the contact, which moves at about 480 m/s, and the volume fraction spreads over
+about twenty finest cells. At the contact (inset) the six-equation models, which relax the
+pressures of two phase energies, go from the water density to the shocked-air density directly,
+while the five-equation models dip below it on the air side.
+
+`SIXEQS` with the pressure relaxation alone (`Physics.pressure_relaxation = 1`) passes only on
+some grids. On the grid above (finest cells of 1/1024 m) the cell of the diaphragm is 83 % water.
+With a diaphragm cell of 17 % or 50 % water, or a diaphragm on a cell face (256 or 512 uniform
+cells, or 1024 cells with the diaphragm moved), the air in the cells of the contact is cold and
+over-compressed, 6 to 37 times denser than the shocked air at the same pressure, the density
+overshoots the water plateau by up to 17 %, the shocked-air plateau is missing, the shock trails
+by 0.6 to 2.2 % of the tube, and the dip at the tail of the rarefaction is deepest in this model.
+It starts within the first tens of microseconds, with a negative mixture pressure in the cells of
+the contact, and it is a defect of the phase energies under the pressure relaxation: with
+`Physics.pressure_temperature_relaxation = 1` (checked on 512 cells), and in `SIXEQS_IE_NPHASE`,
+which rebuilds the phase energies from the total energy (on all these grids), the air at the
+contact has the shocked-air density. The `water-air-512` variant of `Sod-6Eq` sets up the
+512-cell grid.
+
+### Noble-Abel stiffened gas
+
+![Air-water shock tube with NASG water and all four models](media/figures/nasg_tube.png)
+
+*Air-water shock tube with liquid water as a Noble-Abel stiffened gas, at $t = 0.1$ ms on 1024
+cells, with the four models: density $\rho$, velocity $u$ and pressure $P$ against the exact
+solution (gray line) and the exact solution for the same water without covolume and heat of
+formation, $b = q = 0$ (gray dashed).*
+
+`exec/_Tests/NASG` runs the [Noble-Abel stiffened gas](user-guide/models.md#noble-abel-stiffened-gas)
+with the four models (`BUILD=5Eq`, the default, `5Eq-N`, `6Eq` and `6Eq-N`). Its inputs put air,
+an ideal gas, at 50 kg/m$^3$ and $10^9$ Pa left of a diaphragm at $x = 0.7$ m in a 1 m tube, and
+liquid water at 1050 kg/m$^3$ and $10^5$ Pa to its right, with the parameters of Le Métayer and
+Saurel (Phys. Fluids 28, 2016): $\gamma = 1.19$, $P_\infty = 7.028 \times 10^8$ Pa,
+$b = 6.61 \times 10^{-4}$ m$^3$/kg and $q = -1.178 \times 10^6$ J/kg. The runs use MUSCL (minmod),
+HLLC and TVD-RK3; the six-equation inputs add the pressure relaxation. The figure has one level of
+1024 cells:
+
+```bash
+cd exec/_Tests/NASG && make -j4
+mpirun -n 4 ./main2d.gnu.MPI.ex prob/inputs amr.max_level=0 "amr.n_cell=1024 4" \
+  amr.max_grid_size=128 amr.t_write_interval=1e-4
+```
+
+and the other models the same keys with their build and inputs file, for `SIXEQS`
+`make -j4 BUILD=6Eq` and `./main2d.gnu.MPI.6Eq.ex prob/inputs.NASG-6Eq`. All four models follow
+the exact solution, with $L_1$ errors of 0.23 % of the jump in density, 0.29 to 0.30 % in
+velocity and 0.09 % in pressure in every model. The covolume matters: with $b = q = 0$
+the same $\gamma$ and $P_\infty$ give water a sound speed of 890 m/s instead of 1610 m/s, and the
+shock in the water lags far behind. A water drop carried through air at uniform pressure, at
+50 m/s along $x$ and along $y$ (the `drop` lines of `variants.txt`, run to 2 ms), keeps the
+pressure uniform to $2 \times 10^{-12}$ of $P_0 + P_\infty$ and the velocity to
+$8 \times 10^{-10}$ of its value in `SIXEQS`, and to $10^{-14}$ and $7 \times 10^{-12}$ in the
+other models.
 
 ### Shu-Osher problem
 
@@ -215,22 +267,21 @@ $\alpha_1\rho_1$, $\rho u$, $\rho v$ and $\rho E$, on nine grids from 16 to 256 
 The dashed gray line has slope 2.*
 
 `exec/_Tests/IsentropicVortex-5Eq` carries the isentropic vortex of Shu (1998) across the periodic
-box $[-5,5]^2$ for one period with the quadrature WENO5 scheme (`FiniteVolume.Quad = 1`). With
-`CONVERGENCE` defined in `prob/ProblemICBC.H`, COMPAS writes the error norms against the exact
-solution at the end of the run, and `scripts/convergence.py` runs the case over several resolutions
-and plots the errors. From the case directory,
+box $[-5,5]^2$ for one period with WENO5. With `CONVERGENCE` defined in `prob/ProblemICBC.H`,
+COMPAS writes the error norms against the exact solution at the end of the run, and
+`scripts/convergence.py` runs the case over several resolutions and plots the errors. From the
+case directory,
 
 ```bash
 python3 ../../../scripts/convergence.py --run --res 24 36 48 72 96
 python3 ../../../scripts/convergence.py --vars a1rho1 rho_E rho_u --plot
 ```
 
-The figure checks the second-order MUSCL scheme with the same case, switched to MUSCL-MC without
-the face quadrature:
+The figure checks the second-order MUSCL scheme with the same case, switched to MUSCL-MC:
 
 ```bash
 cp prob/inputs inputs_muscl
-printf 'FiniteVolume.Scheme = "MUSCL-MC"\nFiniteVolume.Quad = 0\n' >> inputs_muscl
+printf 'FiniteVolume.Scheme = "MUSCL-MC"\n' >> inputs_muscl
 python3 ../../../scripts/convergence.py --run --inputs inputs_muscl --norm L2 --nprocs 3 --res 16 24 32 48 64 96 128 192 256
 python3 ../../../scripts/convergence.py --vars a1rho1 rho_u rho_v rho_E --norm L2 --plot
 ```
@@ -238,6 +289,145 @@ python3 ../../../scripts/convergence.py --vars a1rho1 rho_u rho_v rho_E --norm L
 The errors settle parallel to the slope-2 line as the grid is refined, the second-order accuracy
 expected of MUSCL-MC; on the coarsest grids, where the vortex spans few cells, they fall more
 slowly.
+
+## Viscous flows and heat conduction
+
+The cases of this section are in `exec/_Tests/Diffusion` (`-DDIFFUSION=true`), one build per model:
+`BUILD=5Eq`, the default, for `FIVEEQS`, `6Eq` for `SIXEQS` and `6Eq-N` for `SIXEQS_IE_NPHASE`
+with two phases. `prob.problem` in each inputs file picks the problem.
+
+### Two-layer Couette flow
+
+![Velocity error and wall stress of the two-layer Couette flow](media/figures/couette_2layer.png)
+
+*Two-layer Couette flow at $t = 20$, viscosity ratio 10. (a) Departure of the velocity from the
+exact profile on 32 cells across the channel, with the interface on a cell face (sharp, solid
+lines) and as a tanh one cell wide (diffuse, dashed). (b) Error of the wall stress against the
+number of cells across the channel, also with the sharp interface in the middle of a cell
+(mid-cell), and for `SIXEQS_IE_NPHASE` (crosses). The dotted line has slope $-1$.*
+
+Two layers at uniform pressure fill a channel between a wall at rest, $y = 0$, and a wall moving
+at $U = 0.01$, $y = H = 1$: material 1, with $\mu_1 = 0.01$ and $\rho_1 = 1$, below
+$y = h = H/2$, and material 2, with $\mu_2 = 0.1$ and $\rho_2 = 10$, above. The steady flow has a
+uniform shear stress and a velocity that is linear in each layer, with a kink at the interface:
+
+$$
+\tau_e = \frac{U}{h/\mu_1 + (H - h)/\mu_2}, \qquad
+u_e(y) = \begin{cases}
+  \tau_e\,y/\mu_1, & y < h,\\
+  \tau_e\left[h/\mu_1 + (y - h)/\mu_2\right], & y > h.
+\end{cases}
+$$
+
+The inputs start from this flow on a strip periodic in $x$, 8 by 32 cells, and run to $t = 20$
+with MUSCL-MC, HLLC and TVD-RK3; the two walls are user boundary conditions. The case writes the
+wall stresses and their exact value to `couette.csv` every 20 coarse steps. `"amr.n_cell=N/4 N"`
+sets the grid, `PhaseField.Eta_Multiplier=1` the diffuse interface and `prob.h=(N/2 + 1/2)/N` the
+interface in the middle of a cell, for example on 64 cells:
+
+```bash
+cd exec/_Tests/Diffusion && make -j4 && make -j4 BUILD=6Eq
+mpirun -n 2 ./main2d.gnu.MPI.ex prob/inputs "amr.n_cell=16 64"
+mpirun -n 2 ./main2d.gnu.MPI.6Eq.ex prob/inputs.Couette2Layer-6Eq "amr.n_cell=16 64"
+mpirun -n 2 ./main2d.gnu.MPI.6Eq.ex prob/inputs.Couette2Layer-6Eq "amr.n_cell=16 64" \
+  PhaseField.Eta_Multiplier=1 amr.case_name=./plot/Couette2Layer-6Eq-diffuse
+mpirun -n 2 ./main2d.gnu.MPI.6Eq.ex prob/inputs.Couette2Layer-6Eq "amr.n_cell=16 64" \
+  prob.h=0.5078125 amr.case_name=./plot/Couette2Layer-6Eq-midcell
+```
+
+Across the interface the traction is continuous and the velocity gradient jumps, so the two half
+cells next to a face act in series, and the harmonic mean of their viscosities, which the
+six-equation models use on the faces
+([Material interfaces](user-guide/models.md#material-interfaces)), is the exact face viscosity. With
+the interface on a face the profile is then exact: the wall stress is within $3 \times 10^{-6}\,\tau_e$
+of $\tau_e$ on every grid. The arithmetic mean of the five-equation models overestimates the face
+viscosity at the interface, so the velocity is off by up to 2 % of $U$ next to it and the wall
+stress by 2.1, 1.1 and 0.5 % on 32, 64 and 128 cells: first order. An interface inside a cell leaves
+a mixed cell with the mixture viscosity, and the harmonic rule is then first order as well, with the
+same error (2.1, 1.0 and 0.5 % in the middle of a cell). A diffuse interface is a band of such
+cells: both rules converge at first order, with 9.3 to 10 % on 32 cells and 2.2 to 2.3 % on 128
+cells, the harmonic mean about 6 % lower. `SIXEQS_IE_NPHASE` gives the `SIXEQS` results to three
+digits.
+
+### Conduction between two materials
+
+![Temperature and heat through the interface of two conducting gases](media/figures/conduction_2mat.png)
+
+*Heat conduction between two ideal gases. (a) Temperature at $t = 0.5$ on 256 cells, with the
+interface on a cell face (sharp, solid lines) and as a tanh one cell wide (diffuse, dashed).
+(b) Heat $Q$ through the interface against time. (c) Error of $Q$ at $t = 0.5$ against the
+number of cells: the line is the mean of the heat lost by $x < 0$ and gained by $x > 0$, the bar
+spans the two. Gray: the exact solution.*
+
+Two ideal gases at rest at the uniform pressure 1 meet at $x = 0$: material 1 ($\gamma = 1.4$,
+$c_v = 2.5$, $\kappa = 0.0063$) at $T_L = 1.005$ on the left and material 2 ($\gamma = 5/3$,
+$c_v = 0.375$, $\kappa = 0.00225$, four times denser) at $T_R = 0.995$ on the right. Between two
+semi-infinite media the interface takes at once the temperature
+
+$$
+T_i = \frac{e_L T_L + e_R T_R}{e_L + e_R}, \qquad e = \sqrt{\kappa\rho c_p},
+$$
+
+here $T_i = 1.00163$, each side follows an erf profile with its own diffusivity, and the heat
+through the interface is $Q_e = 2e_L(T_L - T_i)\sqrt{t/\pi}$. The inputs run it to $t = 0.5$ on a
+strip of 256 by 8 cells, periodic in $y$ and closed by adiabatic walls, with the interface one cell
+wide, and `SIXEQS` with the pressure-temperature relaxation. The case writes the heat through the
+interface, $Q_e$ and the interface temperature to `conduction.csv` every 10 coarse steps.
+`"amr.n_cell=N 8"` sets the grid and `PhaseField.Eta_Multiplier=0` the sharp interface:
+
+```bash
+cd exec/_Tests/Diffusion && make -j4 && make -j4 BUILD=6Eq && make -j4 BUILD=6Eq-N
+mpirun -n 1 ./main2d.gnu.MPI.ex prob/inputs.HeatConduction2Mat-5Eq
+mpirun -n 1 ./main2d.gnu.MPI.6Eq.ex prob/inputs.HeatConduction2Mat-6Eq
+mpirun -n 1 ./main2d.gnu.MPI.6Eq-N.ex prob/inputs.HeatConduction2Mat-6Eq-N
+mpirun -n 1 ./main2d.gnu.MPI.6Eq.ex prob/inputs.HeatConduction2Mat-6Eq PhaseField.Eta_Multiplier=0 \
+  amr.case_name=./plot/HeatConduction2Mat-6Eq-sharp
+```
+
+In the five-equation models and in `SIXEQS` with the pressure-temperature relaxation the mixture
+conducts as one medium, and the temperature follows the two erf profiles. With the interface on a
+face the interface temperature is within $1.3 \times 10^{-4}$ of the jump $T_L - T_R$ from $T_i$ in
+`SIXEQS` (harmonic mean of the conductivities) and within $1.4 \times 10^{-3}$ in the five-equation
+model (arithmetic mean), and the heat converges to $Q_e$, within 0.3 and 0.5 % on 512 cells. With
+the diffuse interface the cells of the interface conduct with the mixture conductivity, and the
+error is first order in both: the heat is 7 to 8 % too large on 128 cells and 3 % on 512, and the
+interface temperature is off by 4.9, 2.6 and 1.3 % of the jump. `SIXEQS_IE_NPHASE` has no
+temperature relaxation, and each phase conducts only through itself, so it does not conduct across a
+material interface: no heat crosses a sharp interface, where the temperature keeps its step, and
+through a diffuse one heat passes only through the mixed cells, less and less as the grid is
+refined, 52, 28 and 14 % of $Q_e$ on 128, 256 and 512 cells
+([Known limitations](user-guide/models.md#material-interfaces)).
+
+### Viscous shock tube
+
+![Density of the viscous shock tube with the three models](media/figures/viscous_shock_tube.png)
+
+*Viscous shock tube of Daru and Tenaud at $Re = 1000$, $t = 1$, on 512 by 256 finest cells.
+(a) Density of the `FIVEEQS` run near the right wall over the whole color map, from its smallest
+to its largest value, with a light schlieren on the steep gradients; the dashed lines are the
+lineouts. (b), (c) Density along $y = 0.02$ and $y = 0.1$ with the three models.*
+
+Daru and Tenaud (Comput. Fluids 38, 2009) proposed this test of a shock and a boundary layer: in a
+closed unit box with no-slip walls, a diaphragm at $x = 0.5$ holds gas at rest with $\rho = 120$,
+$P = 120/\gamma$ against $\rho = 1.2$, $P = 1.2/\gamma$, $\gamma = 1.4$, $\mu = 1/Re$ and a Prandtl
+number of 0.73. The shock reflects from the right wall and meets the boundary layer it left on the
+bottom wall; the layer separates into vortices under a lambda shock. The lower half is simulated,
+with a slip wall at $y = 0.5$. The test inputs (`ViscousShockTube-5Eq`, `-6Eq`, `-6Eq-N`) run it
+with one gas (in the six-equation models with a trace of $10^{-6}$ of the other phase and the
+pressure relaxation) on 64 by 32 base cells with two levels of refinement, 256 by 128 at the finest,
+with WENO5, HLLC and TVD-RK3. The figure doubles the resolution, one to two minutes per model on
+6 ranks:
+
+```bash
+cd exec/_Tests/Diffusion && make -j4 && make -j4 BUILD=6Eq && make -j4 BUILD=6Eq-N
+mpirun -n 6 ./main2d.gnu.MPI.ex prob/inputs.ViscousShockTube-5Eq "amr.n_cell=128 64 8"
+mpirun -n 6 ./main2d.gnu.MPI.6Eq.ex prob/inputs.ViscousShockTube-6Eq "amr.n_cell=128 64 8"
+mpirun -n 6 ./main2d.gnu.MPI.6Eq-N.ex prob/inputs.ViscousShockTube-6Eq-N "amr.n_cell=128 64 8"
+```
+
+With one gas the models solve the same equations, and they give the same flow: the density of
+the six-equation runs differs from the five-equation one by 0.85 and 0.89 % ($L_1$ over the
+domain); the lineouts differ mostly in the vortex at the right wall.
 
 ## Interface transport
 
@@ -252,7 +442,8 @@ two levels of refinement.*
 The problem of the [first simulation](getting-started/quickstart.md): a slotted disk (Zalesak,
 J. Comput. Phys. 31, 1979), a square, a circle and a triangle carried for one period across a
 periodic box at uniform pressure and velocity, so the exact solution is the initial condition.
-`exec/_Tests/Advection-5Eq`, `Advection-THINC-5Eq` and `Advection-PF-5Eq` differ only in the
+`exec/_Tests/Advection` runs the three with one executable, from `prob/inputs` (`Advection-5Eq`),
+`prob/inputs.Advection-THINC-5Eq` and `prob/inputs.Advection-PF-5Eq`, which differ only in the
 interface treatment.
 
 MUSCL-MC alone spreads the interfaces over many cells, so that 14.8 % of the domain is mixed
@@ -597,13 +788,13 @@ $\sigma = \sqrt{Agk + \nu^2k^4} - \nu k^2$; the dotted line marks $ka = 0.2$, wh
 stage ends. (b) Bubble-tip velocity $dy_b/dt$ against the terminal velocity of Goncharov (2002),
 $V_b = \sqrt{2A/(1+A)\,g/(3k)}$.*
 
-`exec/_Tests/RayleighTaylor-5Eq` puts a heavy fluid ($\rho_1 = 3$) over a light one
-($\rho_2 = 1$), so $A = 0.5$, under $g = 1$, with interface $y = a_0\cos kx$, $k = 2\pi$. Half a
-wavelength is simulated between slip walls, on 64 by 512 finest cells, with MUSCL-MC, THINC and
-$\mu = 0.001$; $P_0 = 100$ keeps the flow nearly incompressible. The run sets $a_0 = 0.01$:
+`exec/_Tests/RayleighTaylor` (its default build, in 2D) puts a heavy fluid ($\rho_1 = 3$) over a
+light one ($\rho_2 = 1$), so $A = 0.5$, under $g = 1$, with interface $y = a_0\cos kx$, $k = 2\pi$.
+Half a wavelength is simulated between slip walls, on 64 by 512 finest cells, with MUSCL-MC, THINC
+and $\mu = 0.001$; $P_0 = 100$ keeps the flow nearly incompressible. The run sets $a_0 = 0.01$:
 
 ```bash
-cd exec/_Tests/RayleighTaylor-5Eq && make -j3
+cd exec/_Tests/RayleighTaylor && make -j3
 mpirun -n 3 ./main2d.gnu.MPI.ex prob/inputs prob.a0=0.01 stop_time=6 amr.t_write_interval=0.05 run.user_output_int=10
 ```
 

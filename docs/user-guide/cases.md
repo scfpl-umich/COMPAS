@@ -57,6 +57,12 @@ Change `amr.case_name` in the new `prob/inputs`, so that the copy writes its out
 folder. `bash ../clean.sh` (from a case in `exec/`) or `bash ../../clean.sh` (from a case in
 `exec/_Tests/`) removes the plotfiles and checkpoints of previous runs.
 
+Some cases of `exec/_Tests/` hold one build per model (`BUILD` in the `GNUmakefile`), with one
+`prob/` for all of them, `#if (PHYSICS == ...)` where the models differ, and an inputs file per
+base run, `prob/inputs.<label>`
+([Testing](testing.md#several-builds-and-base-runs-in-one-case)). A copy of one keeps all its
+builds, or only the branch of the model it needs.
+
 ## GNUmakefile
 
 The `GNUmakefile` sets the model (`-DPHYSICS=`), the number of phases for the N-phase models
@@ -169,7 +175,7 @@ the core uses its default behavior.
 
 | Macro | Function | Called | Example |
 |---|---|---|---|
-| `USER_SOURCE_TERM` | `user_source_term` | In every cell at every stage of the time step | `exec/_Tests/RayleighTaylor-5Eq` |
+| `USER_SOURCE_TERM` | `user_source_term` | In every cell at every stage of the time step | `exec/_Tests/RayleighTaylor` |
 | `USER_BOUNDARY_FUNC_ROBIN` | `BoundaryFunction_Robin` | Ghost cells of faces with boundary code 1 | `exec/_Tests/Jet-Inflow-5Eq` |
 | `USER_BOUNDARY_FUNC_DIRICHLET`, `USER_BOUNDARY_FUNC_NEUMANN` | `BoundaryFunction_User` | Ghost cells of faces with boundary code 1 | |
 | `USER_BOUNDARY_FUNC` | `BoundaryFill_User` | Ghost cells outside the domain | `exec/GuderleyImplosion-5Eq` |
@@ -201,7 +207,7 @@ void user_source_term (
 
 `Residual` is added to the right-hand side of the conservative equations in cell `(i,j,k)`, whose
 state is `statein(i,j,k,n)`. The array is zeroed before the call, so a component the function
-leaves unset adds nothing. `exec/_Tests/RayleighTaylor-5Eq` adds gravity to the momentum and energy
+leaves unset adds nothing. `exec/_Tests/RayleighTaylor` adds gravity to the momentum and energy
 equations this way.
 
 #### Boundary conditions

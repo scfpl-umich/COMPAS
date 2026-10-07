@@ -1,7 +1,0 @@
-# Run-time variants of this case, run by scripts/test_cases.sh with the same executable.
-# Each line is a name followed by ParmParse overrides appended to "<exe> prob/inputs".
-# The base inputs use the N-phase six-equation model (NPHASE = 2) with DIFFUSION = true, WENO5,
-# HLLC and pressure relaxation.
-
-no-relaxation           max_step=10 Physics.pressure_relaxation=0
-riemann-hll             max_step=10 Physics.RiemannSolver=HLL

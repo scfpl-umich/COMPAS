@@ -1246,10 +1246,18 @@ COMPAS::ReadParameters ()
 
     {
         ResolvePaths();
-        
+
+        // The inputs file of this run: the first command-line argument, unless it is a
+        // ParmParse override (a case directory can hold several inputs files)
+        std::string inputs_file = "./prob/inputs";
+        if (amrex::command_argument_count() >= 1){
+            const std::string first = amrex::get_command_argument(1);
+            if (first.find('=') == std::string::npos) { inputs_file = first; }
+        }
+
         std::vector<std::pair<std::string,std::string>> files = {
             {"ProblemICBC.H", "./prob/ProblemICBC.H"},
-            {"inputs",        "./prob/inputs"},
+            {"inputs",        inputs_file},
             {"Parm.H",        "./prob/Parm.H"},
             {"UserParm.cpp",  "./prob/UserParm.cpp"},
             {"GNUmakefile",   "./GNUmakefile"}
@@ -1785,6 +1793,64 @@ COMPAS::FillPatchStage (MultiFab& mf,
 }
 
 
+// fill mf of level lev for a Runge-Kutta stage that every level takes at stage_time (no subcycling):
+// the valid region and the same-level ghost cells from the stage state U_stage[lev], the physical
+// boundary conditions at stage_time, and the coarse-fine ghost cells interpolated in space from the
+// coarser level's stage state U_stage[lev-1], which is at the same stage (no interpolation in time).
+// On level 0 this is what FillPatch and FillPatchStage do with one source state
+void
+COMPAS::FillPatchStageLevels (MultiFab& mf,
+                              int lev,
+                              Real const& stage_time,
+                              Vector<MultiFab>& U_stage,
+                              int scomp,
+                              int dcomp,
+                              int ncomp)
+{
+
+    BL_PROFILE("FillPatchStageLevels[FV]()");
+
+    Interpolater* mapper = nullptr;
+    if (ID_Interpolater == "pc_interp"){
+        mapper = &pc_interp;
+    } else if (ID_Interpolater == "lincc_interp"){
+        mapper = &lincc_interp;
+    } else if (ID_Interpolater == "quartic_interp"){
+        mapper = &quartic_interp;
+    }
+
+    Vector<MultiFab*> fmf{&U_stage[lev]};
+    Vector<Real> ftime{stage_time};
+
+    GpuBndryFuncFab<AmrCoreGPUFill> gpu_bndry_func(AmrCoreGPUFill{d_parm});
+
+    if (lev == 0)
+    {
+        PhysBCFunct<GpuBndryFuncFab<AmrCoreGPUFill> > physbc(geom[lev],bcs,gpu_bndry_func);
+        amrex::FillPatchSingleLevel(mf, stage_time,
+                                    fmf, ftime,
+                                    scomp, dcomp, ncomp,
+                                    geom[lev], physbc, scomp);
+    }
+    else
+    {
+        Vector<MultiFab*> cmf{&U_stage[lev-1]};
+        Vector<Real> ctime{stage_time};
+
+        PhysBCFunct<GpuBndryFuncFab<AmrCoreGPUFill> > cphysbc(geom[lev-1],bcs,gpu_bndry_func);
+        PhysBCFunct<GpuBndryFuncFab<AmrCoreGPUFill> > fphysbc(geom[lev],bcs,gpu_bndry_func);
+        amrex::FillPatchTwoLevels(mf, stage_time,
+                                  cmf, ctime,
+                                  fmf, ftime,
+                                  scomp, dcomp, ncomp,
+                                  geom[lev-1], geom[lev],
+                                  cphysbc, scomp, fphysbc, scomp,
+                                  refRatio(lev-1), mapper,
+                                  bcs, scomp);
+    }
+}
+
+
 // fill an entire multifab by interpolating from the coarser level
 // this comes into play when a new level of refinement appears
 void
@@ -2089,6 +2155,8 @@ COMPAS::timeStepNoSubcycling (Real time, int iteration)
         }
     }
 
+    // All levels stage by stage; the coarse faces covered by a finer level take its face fluxes at
+    // every stage, so there is no reflux (Compressible_PhaseField::AdvanceAllLevels)
     AdvanceAllLevels (time, dt[0], iteration);
 
     // Make sure the coarser levels are consistent with the finer levels
@@ -2801,9 +2869,8 @@ COMPAS::EvaluateError (amrex::Vector<amrex::Real> & L2,
         Linf[v] = 0.0;
     }
 
-#ifdef AMREX_USE_OMP
-#pragma omp parallel if (Gpu::notInLaunchRegion())
-#endif
+    // No OpenMP region here: the tiles add to the shared sums L2 and Linf (a parallel region over a
+    // declaration alone also does not compile with USE_OMP = TRUE)
     FArrayBox tmpfab;
 
     for (MFIter mfi(dof_new[lev],TilingIfNotGPU()); mfi.isValid(); ++mfi)

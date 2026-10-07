@@ -5,6 +5,7 @@
 // ABSOLUTELY NO WARRANTY. See COPYRIGHT and LICENSE for details.
 
 #include <AMReX_Gpu.H>
+#include <AMReX_Print.H>
 #include <Macros.H>
 #include <LoopMacros.H>
 #include <Parm.H>
@@ -300,6 +301,16 @@ void Parm::Initialize ()
 #if (DIFFUSION == true)
     CheckCv(cv_1, "prob.EOS.cv_1", "DIFFUSION = true");
     CheckCv(cv_2, "prob.EOS.cv_2", "DIFFUSION = true");
+    // Each phase conducts only through itself, and only the temperature relaxation passes heat
+    // from one phase to the other (once: the cases call Initialize again from DynamicInit)
+    static bool Warned = false;
+    if (!Warned && !Physics_Parm.pressure_temperature_relaxation && (kappa_1 > 0.0 || kappa_2 > 0.0)){
+        Warned = true;
+        amrex::Print() << "Warning: SIXEQS with DIFFUSION = true and a nonzero conductivity, but without "
+                       << "Physics.pressure_temperature_relaxation = 1: no heat passes from one phase to the other, "
+                       << "so the heat flux across a material interface is missing, and more so as the grid is "
+                       << "refined (see Known limitations in docs/user-guide/models.md).\n";
+    }
 #endif
 
     switch(EOS){
@@ -373,8 +384,20 @@ void Parm::Initialize ()
         }
     }
 #if (DIFFUSION == true)
+    bool Conducts = false;
     for (int i_Phase = 0; i_Phase < NPHASE; i_Phase++){
         CheckCv(cv[i_Phase], "prob.EOS.cv", "DIFFUSION = true", i_Phase);
+        Conducts = Conducts || (kappa[i_Phase] > 0.0);
+    }
+    // Each phase conducts only through itself, and the model has no temperature relaxation to
+    // pass heat from one phase to another (once: the cases call Initialize again from DynamicInit)
+    static bool Warned = false;
+    if (!Warned && Conducts){
+        Warned = true;
+        amrex::Print() << "Warning: SIXEQS_IE_NPHASE with DIFFUSION = true and a nonzero conductivity: the model "
+                       << "has no temperature relaxation, so no heat passes from one phase to another, and the heat "
+                       << "flux across a material interface is missing, and more so as the grid is refined "
+                       << "(see Known limitations in docs/user-guide/models.md).\n";
     }
 #endif
 

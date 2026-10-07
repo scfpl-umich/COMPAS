@@ -1,0 +1,6 @@
+# Run-time variants of this case, run by scripts/test_cases.sh with the same executable.
+# Each line is a name followed by ParmParse overrides appended to "<exe> prob/inputs".
+# The base inputs use WENO5, HLLC and TVD-RK3 on one level.
+
+# --- WENO5 via quadrature (FIVEEQS in 2D only) ---
+quad                    max_step=10 FiniteVolume.Quad=1

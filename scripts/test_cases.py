@@ -32,6 +32,13 @@ A case may contain variants.txt. Each non-comment line is a variant name followe
 ParmParse overrides appended to the command line of the base run. Output is cleaned before
 every run, except that a variant whose name starts with "+" continues from the output of
 the previous run, e.g. to restart from its checkpoint. See scripts/test_cases.sh.
+
+A case directory may hold several builds and several base runs. In variants.txt a line
+"[LABEL] ARGS" starts a section: the base run LABEL, built with "make ARGS" (e.g. BUILD=6Eq)
+and run with the inputs file inputs=FILE among ARGS (default prob/inputs); the variant lines
+below it use the same executable and inputs. Sections with the same make arguments share one
+build, and each build must have its own executable (USERSuffix in the GNUmakefile). Without
+section lines a case is one build, run with prob/inputs, as before.
 """
 
 import os
@@ -39,6 +46,7 @@ import re
 import sys
 import csv
 import time
+import shutil
 import argparse
 import subprocess
 from pathlib import Path
@@ -154,20 +162,50 @@ def load_cases(test_list: Path, test_base: Path):
             cases.append(d.name)
     return cases
 
-def load_variants(path: Path):
-    variants = []
-    if not path.exists():
-        return variants
-    with open(path) as f:
-        for line in f:
-            line = line.split("#", 1)[0].strip()
-            if not line:
-                continue
-            words = line.split()
-            name, overrides = words[0], words[1:]
-            keep = name.startswith("+")
-            variants.append((name.lstrip("+"), overrides, keep))
-    return variants
+SECTION_RE = re.compile(r"^\[([^\]\s]+)\]\s*(.*)$")
+
+def load_sections(case_dir: Path, case: str):
+    """The base runs of a case directory, in file order: a list of dicts with the label, the
+    make arguments, the inputs file and the variants [(name, overrides, keep)]. Without a
+    section line in variants.txt: one base run named after the case, plain make, prob/inputs."""
+    path = case_dir / "variants.txt"
+    sections, current = [], None
+    lines = path.read_text().splitlines() if path.exists() else []
+    has_sections = any(SECTION_RE.match(l.split("#", 1)[0].strip()) for l in lines)
+    if not has_sections:
+        current = {"label": case, "make_args": [], "inputs": "./prob/inputs", "variants": []}
+        sections.append(current)
+    for raw in lines:
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        m = SECTION_RE.match(line)
+        if m:
+            make_args, inputs = [], "./prob/inputs"
+            for word in m.group(2).split():
+                if word.startswith("inputs="):
+                    inputs = word.split("=", 1)[1]
+                else:
+                    make_args.append(word)
+            current = {"label": m.group(1), "make_args": make_args, "inputs": inputs, "variants": []}
+            sections.append(current)
+            continue
+        if current is None:
+            raise ValueError(f"{path}: variant line before the first [LABEL] line: {raw.strip()}")
+        words = line.split()
+        name, overrides = words[0], words[1:]
+        keep = name.startswith("+")
+        current["variants"].append((name.lstrip("+"), overrides, keep))
+    return sections
+
+EXE_RE = re.compile(r"^executable is (\S+)\s*$", re.MULTILINE)
+
+def query_executable(make_args):
+    """The executable that "make ARGS" builds, from AMReX's print-executable rule."""
+    out = subprocess.run(["make", "--no-print-directory", *make_args, "print-executable"],
+                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout
+    m = EXE_RE.search(out)
+    return Path(m.group(1)) if m else None
 
 # ============================================================
 # Run one executable and classify the result
@@ -183,11 +221,11 @@ def unused_overrides(contents, overrides):
     keys = [o.split("=", 1)[0] for o in overrides if "=" in o]
     return [k for k in keys if f"::{k}(" in unused]
 
-def run_one(label, executable, overrides, run_log, mpi_ranks, timeout_sec, tail_lines, verbose):
+def run_one(label, executable, inputs, overrides, run_log, mpi_ranks, timeout_sec, tail_lines, verbose):
     if mpi_ranks == 1:
-        cmd = [str(executable), "./prob/inputs", *overrides]
+        cmd = [str(executable), inputs, *overrides]
     else:
-        cmd = ["mpirun", "-n", str(mpi_ranks), str(executable), "./prob/inputs", *overrides]
+        cmd = ["mpirun", "-n", str(mpi_ranks), str(executable), inputs, *overrides]
 
     vprint(f"Run command: {' '.join(cmd)}", verbose)
     vprint(f"Run log: {run_log}", verbose)
@@ -241,7 +279,7 @@ def main():
     parser.add_argument("--tail", type=int, default=40,
                         help="Lines of the log printed when a build or run fails")
     parser.add_argument("--only", type=str, default="",
-                        help="Run only the cases whose name contains this pattern")
+                        help="Run only the cases whose directory name or run label contains this pattern")
     parser.add_argument("--ranks", type=int, default=1,
                         help="MPI ranks per run; with 1 the executable runs without mpirun")
     parser.add_argument("--timeout", type=int, default=10,
@@ -301,8 +339,27 @@ def main():
 
     cases = load_cases(test_list, test_base)
 
-    if only_pattern:
-        cases = [c for c in cases if only_pattern in c]
+    # Base runs of each case directory; --only keeps a whole directory whose name matches,
+    # or the base runs whose label matches
+    case_sections, owner = {}, {}
+    for c in cases:
+        try:
+            secs = load_sections(test_base / c, c) if (test_base / c).is_dir() else \
+                   [{"label": c, "make_args": [], "inputs": "./prob/inputs", "variants": []}]
+        except ValueError as e:
+            error(str(e))
+            sys.exit(2)
+        # Logs and summary rows are named by label, so a label may appear only once
+        for sec in secs:
+            if sec["label"] in owner:
+                error(f"Label {sec['label']} is in both {owner[sec['label']]} and {c}")
+                sys.exit(2)
+            owner[sec["label"]] = c
+        if only_pattern and only_pattern not in c:
+            secs = [s for s in secs if only_pattern in s["label"]]
+        if secs:
+            case_sections[c] = secs
+    cases = [c for c in cases if c in case_sections]
 
     if not cases:
         error(f"No test cases match: {only_pattern or '<none>'}")
@@ -310,7 +367,8 @@ def main():
 
     header("Test Cases to Build + Run")
     for c in cases:
-        print(f"  - {c}")
+        labels = [s["label"] for s in case_sections[c]]
+        print(f"  - {c}" + ("" if labels == [c] else f": {' '.join(labels)}"))
     print()
 
     header("Configuration")
@@ -339,8 +397,7 @@ def main():
     for idx, case in enumerate(cases, start=1):
 
         case_dir = test_base / case
-        log_file = log_dir / f"{case}.log"
-        run_log = log_dir / f"{case}_run.log"
+        sections = case_sections[case]
 
         print()
         print(color("1;34", "=" * 70))
@@ -349,7 +406,7 @@ def main():
 
         if not case_dir.exists():
             error(f"Missing directory: {case_dir}")
-            gh_error("Missing test directory", str(log_file))
+            gh_error("Missing test directory", str(log_dir / f"{case}.log"))
             record([case,"FAILED","SKIP",0,0,0])
             continue
 
@@ -357,85 +414,133 @@ def main():
 
         with pushd(case_dir):
 
-            # ================= BUILD =================
-
-            start_build = time.time()
-
             vprint(f"Case directory: {case_dir}", verbose)
             vprint("Running: make realclean", verbose)
 
+            # realclean removes every build of the directory
             subprocess.run(
-                ["make", "realclean"],
+                ["make", *sections[0]["make_args"], "realclean"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
 
             # One build job per CPU, unless the make arguments after -- set their own -j
             ncpu = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else (os.cpu_count() or 4)
-            build_cmd = ["make", f"-j{ncpu}", *make_opts]
+            several_builds = len({tuple(s["make_args"]) for s in sections}) > 1
 
-            vprint(f"Build command: {' '.join(build_cmd)}", verbose)
-            vprint(f"Build log: {log_file}", verbose)
+            builds = {}      # make arguments -> (build status, executable, build seconds)
+            exe_owner = {}   # executable -> make arguments that built it
 
-            with open(log_file, "w") as lf:
-                ret = subprocess.run(
-                    build_cmd,
-                    stdout=lf,
-                    stderr=lf
-                )
+            # Each build must write its own executable. Ask make before building anything:
+            # checking after a build is too late, the build has already overwritten the
+            # executable of an earlier build that later sections still run.
+            planned = {}
+            for k in dict.fromkeys(tuple(s["make_args"]) for s in sections):
+                e = query_executable([*k, *make_opts])
+                if e is not None:
+                    planned.setdefault(e.name, []).append(k)
+            for name, keys in planned.items():
+                if len(keys) > 1:
+                    error(f"✖ {' and '.join('make ' + ' '.join(k) for k in keys)} write the same "
+                          f"executable {name}; give each build its own USERSuffix in the GNUmakefile")
+                    for k in keys:
+                        builds[k] = ("NOEXE", None, 0)
 
-            build_time = int(time.time() - start_build)
+            for sec in sections:
 
-            vprint(f"Build return code: {ret.returncode}", verbose)
-            vprint(f"Build duration: {build_time}s", verbose)
+                label = sec["label"]
+                key = tuple(sec["make_args"])
+                build_time = 0
 
-            if ret.returncode != 0:
-                error(f"✖ Build failed ({build_time}s)")
-                gh_error("Build failed", str(log_file))
+                # ================= BUILD (once per make arguments) =================
 
-                print("--- Build log (tail) ---")
-                with open(log_file) as lf:
-                    for line in lf.readlines()[-tail_lines:]:
-                        print(line.rstrip())
+                if key not in builds:
+                    log_file = log_dir / f"{label}.log"
+                    start_build = time.time()
+                    build_cmd = ["make", f"-j{ncpu}", *sec["make_args"], *make_opts]
 
-                record([case,"FAILED","SKIP",build_time,0,build_time])
-                gh_endgroup()
-                continue
+                    vprint(f"Build command: {' '.join(build_cmd)}", verbose)
+                    vprint(f"Build log: {log_file}", verbose)
 
-            success(f"✔ Built in {build_time}s")
+                    with open(log_file, "w") as lf:
+                        ret = subprocess.run(
+                            build_cmd,
+                            stdout=lf,
+                            stderr=lf
+                        )
 
-            # ================= LOCATE EXECUTABLE =================
+                    build_time = int(time.time() - start_build)
 
-            vprint("Searching for executable (*.ex)...", verbose)
-            executable = find_executable(Path("."))
+                    vprint(f"Build return code: {ret.returncode}", verbose)
+                    vprint(f"Build duration: {build_time}s", verbose)
 
-            if not executable:
-                error("No executable (*.ex) found")
-                record([case,"OK","NOEXE",build_time,0,build_time])
-                gh_endgroup()
-                continue
+                    executable = None
+                    if ret.returncode != 0:
+                        error(f"✖ Build failed ({build_time}s)")
+                        gh_error("Build failed", str(log_file))
 
-            executable = executable.resolve()
-            vprint(f"Executable found: {executable}", verbose)
+                        print("--- Build log (tail) ---")
+                        with open(log_file) as lf:
+                            for line in lf.readlines()[-tail_lines:]:
+                                print(line.rstrip())
+                        builds[key] = ("FAILED", None, build_time)
+                    else:
+                        success(f"✔ Built in {build_time}s")
 
-            # ================= RUN (base inputs) =================
+                        # ================= LOCATE EXECUTABLE =================
 
-            clean_output()
-            status, run_time = run_one(case, executable, [], run_log,
-                                       mpi_ranks, timeout_sec, tail_lines, verbose)
-            record([case,"OK",status,build_time,run_time,build_time+run_time])
+                        vprint("Asking make for the executable (print-executable)...", verbose)
+                        executable = query_executable([*sec["make_args"], *make_opts])
+                        if executable is None or not executable.is_file():
+                            vprint("Searching for executable (*.ex)...", verbose)
+                            executable = None if several_builds else find_executable(Path("."))
 
-            # ================= RUN (variants) =================
+                        if not executable:
+                            error("No executable (*.ex) found")
+                            builds[key] = ("NOEXE", None, build_time)
+                        else:
+                            executable = executable.resolve()
+                            vprint(f"Executable found: {executable}", verbose)
+                            if executable in exe_owner and exe_owner[executable] != key:
+                                error(f"✖ make {' '.join(key)} and make {' '.join(exe_owner[executable])} "
+                                      f"write the same executable {executable.name}; give each build "
+                                      "its own USERSuffix in the GNUmakefile")
+                                builds[key] = ("NOEXE", None, build_time)
+                            else:
+                                exe_owner[executable] = key
+                                builds[key] = ("OK", executable, build_time)
 
-            if run_variants:
-                for name, overrides, keep in load_variants(Path("variants.txt")):
-                    if not keep:
-                        clean_output()
-                    label = f"{case}:{name}"
-                    vlog = log_dir / f"{case}__{name}_run.log"
-                    status, run_time = run_one(label, executable, overrides, vlog,
-                                               mpi_ranks, timeout_sec, tail_lines, verbose)
-                    record([label,"OK",status,0,run_time,run_time])
+                    # Keep the disk use to one build's object files
+                    if several_builds:
+                        shutil.rmtree("tmp_build_dir", ignore_errors=True)
+
+                bstatus, executable, _ = builds[key]
+                if bstatus == "FAILED":
+                    record([label,"FAILED","SKIP",build_time,0,build_time])
+                    continue
+                if bstatus == "NOEXE":
+                    record([label,"OK","NOEXE",build_time,0,build_time])
+                    continue
+
+                # ================= RUN (base inputs) =================
+
+                clean_output()
+                status, run_time = run_one(label, executable, sec["inputs"], [],
+                                           log_dir / f"{label}_run.log",
+                                           mpi_ranks, timeout_sec, tail_lines, verbose)
+                record([label,"OK",status,build_time,run_time,build_time+run_time])
+
+                # ================= RUN (variants) =================
+
+                if run_variants:
+                    for name, overrides, keep in sec["variants"]:
+                        if not keep:
+                            clean_output()
+                        vlabel = f"{label}:{name}"
+                        vlog = log_dir / f"{label}__{name}_run.log"
+                        status, run_time = run_one(vlabel, executable, sec["inputs"], overrides, vlog,
+                                                   mpi_ranks, timeout_sec, tail_lines, verbose)
+                        record([vlabel,"OK",status,0,run_time,run_time])
 
             # ================= CLEANUP =================
 
@@ -447,7 +552,7 @@ def main():
 
             vprint("Running final make realclean", verbose)
             subprocess.run(
-                ["make", "realclean"],
+                ["make", *sections[0]["make_args"], "realclean"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )

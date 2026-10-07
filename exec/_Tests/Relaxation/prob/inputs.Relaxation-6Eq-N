@@ -1,0 +1,136 @@
+# =====================================================================
+# RELAXATION TEST, N-phase six-equation model (NPHASE = 3)
+# A row of 40 cells along x, one hard state for the pressure relaxation
+# per cell (prob/ProblemICBC_6Eq-N.H), at rest: phase 1 a gas, phase 2 water,
+# phase 3 a second liquid. At step 0 each state is relaxed once with the
+# relaxation of the solver; relax.csv gives, per state, the changes of
+# mass, momentum and energy, |sum alpha - 1|, the smallest alpha and
+# alpha rho, the phase pressure differences before and after, the energy
+# exchange -P d(alpha_k) where it must hold, and the iterations, and the
+# run aborts if one is out of its tolerance. Then two steps with all the
+# states in one periodic domain (insitu.csv). variants.txt changes the
+# EOS (gamma 1.19 to 7.15, pinf up to 1e9 Pa, NASG, Mie-Gruneisen) and
+# the trace threshold. SI units.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 2                # Two steps after the relaxation test of step 0
+stop_time = 1.0
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# One cell of size 1 per state along x, eight identical rows in y
+# =====================================================================
+geometry.prob_lo     = 0.0  0.0
+geometry.prob_hi     = 40.0 8.0
+geometry.is_periodic = 1    1
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+# BC types:
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 0 0
+run.hi_bc = 0 0
+
+
+# =====================================================================
+# VERBOSITY SETTINGS
+# =====================================================================
+amr.v       = 1
+run.sum_var = 0
+
+
+# =====================================================================
+# GRID RESOLUTION AND REFINEMENT SETTINGS
+# =====================================================================
+amr.n_cell      = 40 8       # One cell per state along x (state i in cell i)
+amr.max_level   = 0
+amr.n_error_buf = 1
+
+
+# =====================================================================
+# GRID CREATION & BLOCKING RULES
+# =====================================================================
+amr.blocking_factor_x = 8
+amr.blocking_factor_y = 8
+amr.max_grid_size     = 8    # Five boxes
+amr.regrid_int        = 2
+amr.Interpolater      = "lincc_interp"
+
+
+# =====================================================================
+# TIME STEPPING AND CFL CONTROL
+# A small CFL number, so that in two steps the states hardly mix and each
+# cell is mostly relaxed in place
+# =====================================================================
+run.cfl                     = 0.01
+run.do_subcycle             = 1
+run.check_cfl               = 0
+run.timestep_change_limiter = 0
+run.TimeIntegrator          = "TVD-RK3"
+
+
+# =====================================================================
+# REFLUXING CONTROL
+# =====================================================================
+run.do_reflux = 1
+
+
+# =====================================================================
+# REFINEMENT TAGGING SETTINGS (one level)
+# =====================================================================
+run.refine.ref_vars    = a1
+run.refine.a1.max_level   = 0
+run.refine.a1.value_range = 0.001 0.999
+
+
+# =====================================================================
+# PLOTFILE OUTPUT CONTROL
+# =====================================================================
+amr.case_name        = ./plot/Relaxation-6Eq-N
+amr.plot_int         = 1               # A plotfile every step
+run.output_vars      = a1 a2 a3 a1rho1 a2rho2 a3rho3 rho P
+
+run.user_output_int  = 1               # relax.csv at step 0, insitu.csv every step
+
+
+# =====================================================================
+# CHECKPOINT CONTROL
+# =====================================================================
+amr.chk_file = ./checkpoints/chk
+amr.chk_int  = -1
+
+
+# =====================================================================
+# PHYSICS OPTIONS
+# =====================================================================
+Physics.pressure_relaxation = 1        # Instantaneous pressure relaxation
+Physics.RiemannSolver       = "HLLC"
+
+FiniteVolume.Scheme = "GODUNOV"      # First order: the states are adjacent and extreme, and the
+                                     # reconstruction is not under test
+FiniteVolume.THINC  = 0
+
+PhaseField.phase_field    = 0
+PhaseField.cfl            = 0.3
+PhaseField.Mechanism      = "ACDI"
+PhaseField.ID_ExplicitRC  = 1
+PhaseField.Eta_Multiplier = 0.5
+
+
+# =====================================================================
+# MATERIALS
+# Stiffened gas (EOS = 1): air, water (Saurel and Abgrall 1999) and a
+# stiffer liquid (gamma 7.15, the Tait exponent of water). The variants
+# set the NASG covolume and heat of formation (b, q) and the
+# Mie-Gruneisen coefficients (gGamma, pref, eref).
+# =====================================================================
+prob.EOS.EOS   = 1
+prob.EOS.gamma = 1.4  4.4    7.15
+prob.EOS.pinf  = 0.0  6.0e8  3.0e8

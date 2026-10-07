@@ -25,7 +25,8 @@ mpirun -n 4 ./main2d.gnu.MPI.ex prob/inputs FiniteVolume.Scheme=WENO5 Physics.Ri
 In the tables below, defaults are in bold. An unrecognized value stops the run at startup with a
 message that lists the valid values. Parameters marked (AMReX) are read by AMReX, and their
 defaults and details are in the [AMReX documentation](https://amrex-codes.github.io/amrex/docs_html/).
-The inputs files in `exec/_Tests/` are commented and are a good starting point.
+The inputs files in `exec/_Tests/` (`prob/inputs`, and `prob/inputs.<label>` in the cases with
+several builds) are commented and are a good starting point.
 
 ## Run length and domain
 
@@ -73,8 +74,8 @@ for this reason: WENO5 with `lincc_interp` needs a margin of 3, and a blocking f
 |---|---|
 | `run.cfl` | CFL number (**`0.4`**) |
 | `run.TimeIntegrator` | `ForwardEuler`, `TVD-RK2`, **`TVD-RK3`**, `RK4` |
-| `run.do_subcycle` | **`1`**: each finer level takes smaller steps, by its refinement ratio. `0`: all levels take the same step |
-| `run.do_reflux` | **`1`**: correct the coarse fluxes at coarse–fine boundaries so the update is conservative. `0`: off |
+| `run.do_subcycle` | **`1`**: each finer level takes smaller steps, by its refinement ratio, and the reflux corrects the coarser level after them. `0`: all levels take the same step, every Runge–Kutta stage together (below) |
+| `run.do_reflux` | **`1`**: keep the update conservative at coarse–fine boundaries. With subcycling the reflux corrects the coarse cells after the finer steps (in the six-equation models with a relaxation, the corrected cells are relaxed again); without subcycling the coarse faces covered by a finer level take its fluxes at every stage. `0`: off, each level keeps its own fluxes (not conservative) |
 | `run.vnn` | stability number of the viscous and conductive fluxes, $\Delta t =$ `vnn` $\Delta x^2/$(largest diffusivity) (**`0.25`**). Used with `-DDIFFUSION=true`. In the six-equation models the diffusivity is the larger of the momentum and thermal diffusivities of each face ([six-equation fluxes](models.md#viscous-and-conductive-fluxes-in-the-six-equation-models)); in the five-equation models it is $\mu + (\mu_B - \tfrac23\mu) + \kappa$, not divided by $\rho$ or $\rho c_v$ |
 | `run.cfl_fast`, `run.cfl_switch` | after `cfl_switch` coarse steps (default `10`) the CFL number becomes `cfl_fast` (default `run.cfl`) |
 | `run.timestep_change_limiter` | **`1`**: the time step grows by at most 10% per step. `0`: off |
@@ -82,6 +83,22 @@ for this reason: WENO5 with `lincc_interp` needs a margin of 3, and a blocking f
 
 The time step is shortened to reach `stop_time` exactly, and to land on the output times set by
 `amr.t_write_interval` and the output windows ([Output](#output)).
+
+**AMR time stepping.** With `run.do_subcycle = 1`, a level takes $r$ steps of $\Delta t/r$ for
+each step of the level below ($r$ the refinement ratio), with its coarse–fine ghost cells
+interpolated in time between the old and new states of the coarser level, and the reflux then
+replaces the coarse fluxes at the coarse–fine faces by the time average of the fine fluxes. With
+`run.do_subcycle = 0`, all levels take the same $\Delta t$, set by the finest level, and every
+Runge–Kutta stage together: each level fills its ghost cells from the stage state (the
+coarse–fine ghost cells by spatial interpolation of the coarser level's stage state), each level
+computes its face fluxes, the coarse faces covered by a finer level take the area-weighted average
+of its face fluxes (the conservative fluxes with their viscous parts, and the face
+quantities of the non-conservative terms, so that both use the same faces; the same in the
+Phase-Field step), and then every level is updated, relaxed (six-equation models) and averaged
+down. The update is then conservative at every stage, with no reflux, and it keeps the volume
+fractions within $[0, 1]$ at a sharp interface where the reflux after a multistage step does not
+([six-equation model](models.md#six-equation-model-sixeqs)). Without subcycling the face fluxes of
+all levels are held at once during a stage.
 
 ## Boundary conditions
 
@@ -240,6 +257,7 @@ In `SIXEQS` and `SIXEQS_IE_NPHASE` the bounds on $\alpha_k$ and $\alpha_k\rho_k$
 | `Physics.source_term_step_switch`, `Physics.source_term_time_switch` | set `Physics.source_term` to `1` once the coarse step is at least `step_switch` and the time at least `time_switch` (defaults: never, `0.0`). Five-equation models |
 | `Physics.pressure_relaxation` | **`0`**, `1` (six-equation models) |
 | `Physics.pressure_temperature_relaxation` | **`0`**, `1` (`SIXEQS` only) |
+| `Physics.pressure_relaxation_trace` | **`0`**, or a volume fraction in $[0, 1)$: a phase with $0 < \alpha_k \le$ this value keeps its volume fraction in the pressure relaxation and reaches the common pressure through its energy ([safeguarded relaxation](models.md#safeguarded-pressure-relaxation); six-equation models). The closed form of the `SIXEQS` pressure-temperature relaxation does not use it, only its fallback to the pressure relaxation |
 
 What these terms do is on [Models and equations](models.md).
 
@@ -329,9 +347,11 @@ The covolume and the heat of formation (`b_1`, `b_2`, `q_1`, `q_2`, or the lists
 are read only with EOS `3`. Give them in the units of the case: a case that divides the pressure
 scales in its `Parm.H` needs $b$ and $q$ scaled to match. Liquid water, for example, has
 $\gamma = 1.19$, $P_\infty = 7.028\times10^{8}$ Pa, $b = 6.61\times10^{-4}$ m³/kg,
-$q = -1\,177\,788$ J/kg and $c_v = 3610$ J/(kg K) between 300 and 500 K (Le Métayer and Saurel
-2016). With EOS `3`, `FiniteVolume.Quad = 1` is not available: its characteristic decomposition
-assumes a stiffened gas.
+$q = -1\,177\,788$ J/kg and $c_v = 3610$ J/(kg K) between 300 and 500 K, and its vapor
+$\gamma = 1.47$, $P_\infty = 0$, $b = 0$, $q = 2\,077\,616$ J/kg and $c_v = 955$ J/(kg K) (Le
+Métayer and Saurel 2016; the same values are in Table 3.1 of Furfaro et al., arXiv:1904.02135).
+With EOS `3`, `FiniteVolume.Quad = 1` is not available: its characteristic decomposition assumes
+a stiffened gas.
 
 At startup the run checks that each per-phase list has `NPHASE` values, that each $\gamma_k$ is
 greater than 1 with EOS `0`, `1` or `3`, that each $b_k$ is 0 or positive with EOS `3`, and that

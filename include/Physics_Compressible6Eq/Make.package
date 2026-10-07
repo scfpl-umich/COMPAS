@@ -41,5 +41,3 @@ CEXE_headers += FluxDiffusion_Compressible6Eq.H
 CEXE_headers += Relaxation_Pressure_Instantaneous_Compressible6Eq.H
 CEXE_headers += Relaxation_PressureTemperature_Instantaneous_Compressible6Eq.H
 CEXE_headers += Relaxation_Instantaneous_Compressible6Eq.H
-
-CEXE_headers += RefluxSourceTerms_Compressible6Eq.H

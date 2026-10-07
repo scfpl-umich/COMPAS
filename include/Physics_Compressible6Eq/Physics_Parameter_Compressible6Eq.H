@@ -21,9 +21,11 @@ struct Physics_Parameter
 {
     int relaxation = 0;
     int pressure_relaxation = 0;
+    // Volume fraction at or below which a phase keeps its volume fraction in the pressure
+    // relaxation (it reaches the common pressure through its energy); 0 relaxes every present phase
+    amrex::Real pressure_relaxation_trace = 0.0;
     int pressure_temperature_relaxation = 0;
     int pressure_temperature_gibbs_relaxation = 0;
-    amrex::Real pressure_relaxation_implicit = 1.0;
 
     Riemann RiemannSolver = Riemann::HLLC;
     int ID_Riemann = 2;
@@ -33,9 +35,12 @@ struct Physics_Parameter
     {
         amrex::ParmParse pp("Physics");
         pp.query("pressure_relaxation",pressure_relaxation);
+        pp.query("pressure_relaxation_trace",pressure_relaxation_trace);
+        if (pressure_relaxation_trace < 0.0 || pressure_relaxation_trace >= 1.0){
+            amrex::Abort("Physics.pressure_relaxation_trace must be in [0, 1).");
+        }
         pp.query("pressure_temperature_relaxation",pressure_temperature_relaxation);
         pp.query("pressure_temperature_gibbs_relaxation",pressure_temperature_gibbs_relaxation);
-        pp.query("pressure_relaxation_implicit",pressure_relaxation_implicit);
 
         if (pressure_temperature_gibbs_relaxation){
             amrex::Abort("Physics.pressure_temperature_gibbs_relaxation is not implemented yet. "

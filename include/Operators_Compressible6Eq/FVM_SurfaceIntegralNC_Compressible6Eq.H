@@ -90,7 +90,12 @@ void FVM_SurfaceIntegral_NC(int i, int j, int k,
     // phase 1; phase 2 takes Y_2 [div(u.tau)]_h + alpha_2 Phi_2 - Y_2 Phi from it, with
     // Phi_k = tau_k : grad u and Phi = alpha_1 Phi_1 + alpha_2 Phi_2. Each phase then gets
     // Y_k [div(u.tau)]_h + alpha_k Phi_k - Y_k Phi: the sum is conservative, an absent phase
-    // (alpha_k = Y_k = 0) gets 0 and a uniform velocity gives 0.
+    // (alpha_k = Y_k = 0) gets 0 and a uniform velocity gives 0. In the dissipation shares
+    // alpha_k is that of a phase with mass (PhaseDiffusion_DissipationFraction_D), so a massless
+    // trace (alpha_k of round-off size, or negative, with alpha_k rho_k = 0) gets exactly 0.
+    // With the pressure-temperature relaxation the component also carries the heat flux of the
+    // mixture (FDM_Conservative2FluxDiffusion_D_Compressible6Eq.H), so each phase also gets its
+    // mass fraction of the heat.
     amrex::Real Div_Work;
     FVM_Divergence_K(i, j, k, INDEX_NC_ViscousWork,
                      Div_Work,
@@ -104,10 +109,11 @@ void FVM_SurfaceIntegral_NC(int i, int j, int k,
                              AMREX_D_DECL(dx, dy, dz),
                                           EOS_Parameter);
 
-    amrex::Real Alpha2   = 1.0 - Alpha1;
+    amrex::Real Alpha1_Phi = PhaseDiffusion_DissipationFraction_D(Alpha1, Alpha1_rho1);
+    amrex::Real Alpha2_Phi = PhaseDiffusion_DissipationFraction_D(1.0 - Alpha1, Alpha2_rho2);
     amrex::Real Y2       = Alpha2_rho2/rho;
-    amrex::Real Phi      = Alpha1*Phi_Phase[0] + Alpha2*Phi_Phase[1];
-    amrex::Real Transfer = Y2*Div_Work + (Alpha2*Phi_Phase[1] - Y2*Phi);
+    amrex::Real Phi      = Alpha1_Phi*Phi_Phase[0] + Alpha2_Phi*Phi_Phase[1];
+    amrex::Real Transfer = Y2*Div_Work + (Alpha2_Phi*Phi_Phase[1] - Y2*Phi);
 
     dof_out(i,j,k,INDEX_Energy1) -= Transfer;
     dof_out(i,j,k,INDEX_Energy2) += Transfer;

@@ -15,8 +15,8 @@
 // (d = ID_Dimension). The core solves U_t = -div(F - F_D) with F_D this flux.
 //
 // The mixture stress tau = sum_k alpha_k tau_k, with tau_k = mu_k (grad u + grad u^T)
-// + (muB_k - 2/3 mu_k)(div u) I, uses the face viscosities mu and mub of the arithmetic face
-// volume fractions, as in the five-equation models:
+// + (muB_k - 2/3 mu_k)(div u) I, uses the face viscosities mu and mub, the harmonic means of
+// the mixture viscosities sum_k alpha_k mu_k of the two cells (PhaseDiffusion_FaceViscosity_D):
 //   momentum   tau . e_d
 //   energy 1   u_f . tau . e_d + w_1 kappa_1 dT_1/dx_d
 //   energy 2                     w_2 kappa_2 dT_2/dx_d
@@ -24,7 +24,10 @@
 // Flux_Work, the non-conservative face component INDEX_NC_ViscousWork, from which
 // FVM_SurfaceIntegral_NC moves the share of phase 2 (see FVM_SurfaceIntegralNC_Compressible6Eq.H).
 // Each phase conducts with its own temperature and the harmonic face volume fraction w_k
-// (PhaseDiffusion_FaceWeight_D).
+// (PhaseDiffusion_FaceWeight_D). With the pressure-temperature relaxation the phase heat fluxes
+// are 0 and the mixture conducts as one medium instead: its heat flux Q_Mix
+// (FDM_Conservative2FluxDiffusion_D_Compressible6Eq.H) is added to energy 1 and to Flux_Work,
+// so it is shared between the phases by their mass fractions as the viscous work is.
 //
 // dmax, for the time step vnn dx^2/dmax, is a diffusivity: the larger of the momentum
 // diffusivity (4/3 mu + mub)/rho, with rho the smaller of the two cell densities, and
@@ -40,6 +43,7 @@ void FluxDiffusion(amrex::Array<amrex::Real,5+AMREX_SPACEDIM>& Flux,
                    amrex::Array<amrex::Array<amrex::Real,AMREX_SPACEDIM>,AMREX_SPACEDIM> const& Grad_Vel,
                    amrex::Array<amrex::Real,2> const& Weight,
                    amrex::Array<amrex::Real,2> const& Grad_T,
+                   amrex::Real const& Q_Mix,
                    amrex::Real const& mu,
                    amrex::Real const& mub,
                    amrex::Real const& rho,
@@ -69,10 +73,10 @@ void FluxDiffusion(amrex::Array<amrex::Real,5+AMREX_SPACEDIM>& Flux,
         Flux[INDEX_MomentumX+j] = tau[j];
     }
     Flux[INDEX_MomentumX+ID_Dimension] += tau_b;
-    Flux[INDEX_Energy1] = Work + qC1;
+    Flux[INDEX_Energy1] = Work + Q_Mix + qC1;
     Flux[INDEX_Energy2] = qC2;
 
-    Flux_Work = Work;
+    Flux_Work = Work + Q_Mix;
 
     dmax = std::max((4.0/3.0*mu + mub)/rho, Chi_T);
 }

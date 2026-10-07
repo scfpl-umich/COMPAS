@@ -15,8 +15,8 @@
 // face normal e_d (d = ID_Dimension). The core solves U_t = -div(F - F_D) with F_D this flux.
 //
 // The mixture stress tau = sum_k alpha_k tau_k, with tau_k = mu_k (grad u + grad u^T)
-// + (muB_k - 2/3 mu_k)(div u) I, uses the face viscosities mu and mub of the arithmetic face
-// volume fractions, as in the five-equation models:
+// + (muB_k - 2/3 mu_k)(div u) I, uses the face viscosities mu and mub, the harmonic means of
+// the mixture viscosities sum_k alpha_k mu_k of the two cells (PhaseDiffusion_FaceViscosity_D):
 //   momentum                       tau . e_d
 //   phase internal energy k        q_k = w_k kappa_k dT_k/dx_d
 //   total energy rho E             u_f . tau . e_d + sum_k q_k

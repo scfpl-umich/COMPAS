@@ -110,6 +110,59 @@ public:
                      FluxRegister* fr_as_crse_nc, 
                      FluxRegister* fr_as_fine_nc) override;
 
+    // Parts of compute_dUdt_FV, also used by the step without subcycling: the face MultiFabs of a
+    // level, the face fluxes and NC face quantities (and c_max) from a state with ghost cells, the
+    // right-hand side from the face MultiFabs, the CFL check, and the area scaling for the registers
+    void DefineFaceFluxes (Array<MultiFab,AMREX_SPACEDIM>& fluxes,
+                           Array<MultiFab,AMREX_SPACEDIM>& fluxes_nc,
+                           int lev);
+
+    void ComputeFaceFluxes (MultiFab const& U,
+                            Array<MultiFab,AMREX_SPACEDIM>& fluxes,
+                            Array<MultiFab,AMREX_SPACEDIM>& fluxes_nc,
+                            int lev,
+                            Real time,
+                            int stage);
+
+    void FluxDivergence (MultiFab& dUdt_mf,
+                         MultiFab const& U,
+                         Array<MultiFab,AMREX_SPACEDIM> const& fluxes,
+                         Array<MultiFab,AMREX_SPACEDIM> const& fluxes_nc,
+                         int lev,
+                         Real time,
+                         Real dt_lev);
+
+    void CheckCFL (int lev, Real dt_lev);
+
+    void ScaleFaceFluxesByArea (Array<MultiFab,AMREX_SPACEDIM>& fluxes,
+                                Array<MultiFab,AMREX_SPACEDIM>& fluxes_nc,
+                                int lev);
+
+    // =============================================================================================
+    // Step without subcycling, all levels stage by stage (Class_Compressible_PhaseField_StageCoupling.cpp)
+    // =============================================================================================
+    void AdvanceAllLevels (Real time, Real dt_lev, int ncycle) override;
+
+    // One step of all levels: Grad_Q == nullptr for the hyperbolic step, else the Phase-Field step
+    void AdvanceAllLevelsStageCoupled (Vector<MultiFab>& mf_new,
+                                       Vector<MultiFab>& mf_old,
+                                       Vector<Array<MultiFab,AMREX_SPACEDIM>> const* Grad_Q,
+                                       Real time,
+                                       Real dt_lev,
+                                       int ncycle);
+
+    // Right-hand side of every level for one stage, with the finer faces averaged onto the coarser
+    void StageRHSAllLevels (Vector<MultiFab>& dUdt,
+                            Vector<MultiFab>& Uborder,
+                            Vector<MultiFab>& U_stage,
+                            Vector<Array<MultiFab,AMREX_SPACEDIM>> const* Grad_Q,
+                            Real stage_time,
+                            Real dt_stage,
+                            int ncycle,
+                            int stage);
+
+    bool StageBoundViolated (MultiFab const& U);
+
     void EstTimeStep (Real& dt_est, int lev, Real const& time) override;
 
     virtual
@@ -241,6 +294,21 @@ public:
                                      FluxRegister* fr_as_crse_nc, 
                                      FluxRegister* fr_as_fine_nc);
 
+    // Parts of PhaseField_compute_dUdt_FV: the Phase-Field face fluxes of a level, and the
+    // right-hand side from them
+    void PhaseField_ComputeFaceFluxes (MultiFab const& U,
+                                       Array<MultiFab,AMREX_SPACEDIM> const& Grad_Q,
+                                       Array<MultiFab,AMREX_SPACEDIM>& fluxes,
+                                       Array<MultiFab,AMREX_SPACEDIM>& fluxes_nc,
+                                       int lev,
+                                       int stage);
+
+    void PhaseField_FluxDivergence (MultiFab& dUdt_mf,
+                                    MultiFab const& U,
+                                    Array<MultiFab,AMREX_SPACEDIM> const& fluxes,
+                                    Array<MultiFab,AMREX_SPACEDIM> const& fluxes_nc,
+                                    int lev);
+
     //Euler advancement
     void PhaseField_ForwardEuler (Vector<MultiFab>& mf_new, 
                                    Vector<MultiFab>& mf_old, 
@@ -292,7 +360,7 @@ public:
                                     Real dt_lev, 
                                     int ncycle);
 
-    //Advance state vector at all levels with different RK schemes
+    //Advance state vector at all levels, stage by stage (the step without subcycling)
     void PhaseField_AdvanceAllLevels (Vector<MultiFab>& mf_new,
                                       Vector<MultiFab>& mf_old,
                                       Vector<Array<MultiFab,AMREX_SPACEDIM>> const& Grad_Q,

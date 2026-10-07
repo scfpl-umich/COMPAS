@@ -94,7 +94,7 @@ Build a two-dimensional advected interface with two levels of refinement, then r
 MPI ranks (about 15 seconds on a laptop):
 
 ```bash
-cd COMPAS/exec/_Tests/Advection-5Eq
+cd COMPAS/exec/_Tests/Advection
 make -j4
 mpirun -n 4 ./main2d.gnu.MPI.ex prob/inputs amr.plot_int=50
 ```
@@ -107,9 +107,13 @@ ParaView or VisIt as AMReX plotfiles, or with [yt](https://yt-project.org/); the
 the same folder loads the whole run as a time series in VisIt. `bash ../../clean.sh` removes the
 output of previous runs.
 
-The same problem with Phase-Field interface regularization is in `exec/_Tests/Advection-PF-5Eq`
-(the default CAC-Adv mechanism, about a minute on four ranks), and with THINC in
-`exec/_Tests/Advection-THINC-5Eq`. Both build and run the same way.
+The same executable runs the problem with Phase-Field interface regularization (the default
+CAC-Adv mechanism, about a minute on four ranks) and with THINC, from their own inputs files:
+
+```bash
+mpirun -n 4 ./main2d.gnu.MPI.ex prob/inputs.Advection-PF-5Eq
+mpirun -n 4 ./main2d.gnu.MPI.ex prob/inputs.Advection-THINC-5Eq
+```
 
 Any parameter in `prob/inputs` can be overridden on the command line, the quickest way to try a
 different method:
@@ -153,10 +157,10 @@ COMPAS/
 bash scripts/test_cases.sh
 ```
 
-The suite builds every case in `exec/_Tests/` and briefly runs it and the variants in its
-`variants.txt`, checking each run for its exit status, for finite values in its log, and for the
-use of every override it is given. It is a build-and-stability check; the comparisons with
-reference solutions are under
+The suite builds every case in `exec/_Tests/`, each of its builds, and briefly runs its base runs
+and the variants in its `variants.txt`, checking each run for its exit status, for finite values
+in its log, and for the use of every override it is given. It is a build-and-stability check; the
+comparisons with reference solutions are under
 [Verification and validation](https://scfpl-umich.github.io/COMPAS/verification.html), and the
 runner's options under [Testing](https://scfpl-umich.github.io/COMPAS/user-guide/testing.html).
 

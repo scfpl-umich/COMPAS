@@ -188,8 +188,14 @@ void Riemann_HLLC(TF& Flux_Riemann,
     amrex::Real Alpha2_rho2_E2L_Star = ((VL - SL)*Alpha2_rho2_E2L + VL*Alpha2_p2L - S_Star*Alpha2_p2L_Star)/(S_Star - SL);
     amrex::Real Alpha2_rho2_E2R_Star = ((VR - SR)*Alpha2_rho2_E2R + VR*Alpha2_p2R - S_Star*Alpha2_p2R_Star)/(S_Star - SR);
 
-    amrex::Real Alpha1L_Star = Alpha1L;
-    amrex::Real Alpha1R_Star = Alpha1R;
+    // The volume fraction is scaled like the masses (Johnsen and Colonius 2006), so that its flux is
+    // alpha_K u*_K, with the transport velocity of the HLLC mass flux,
+    // u*_K = u_K + S_K^-+ ((S_K - u_K)/(S_K - S*) - 1) (S_L^- = min(0, S_L), S_R^+ = max(0, S_R)):
+    // S* (S_K - u_K)/(S_K - S*) where the star state is used, u_K where the flux is F_K. Kept
+    // unscaled, as in Huang 2026 (Eq. 50), it moved with u_K while the masses moved with u*_K, and
+    // where sign(u_K) != sign(S*) its first-order update was downwind.
+    amrex::Real Alpha1L_Star = (SL - VL)/(SL - S_Star)*Alpha1L;
+    amrex::Real Alpha1R_Star = (SR - VR)/(SR - S_Star)*Alpha1R;
 
     amrex::Array<amrex::Real,5+AMREX_SPACEDIM> ConservativeL_Star;
     State2Conservative(ConservativeL_Star,
@@ -209,6 +215,10 @@ void Riemann_HLLC(TF& Flux_Riemann,
                        Alpha2_rho2_E2R_Star,
                        Alpha1R_Star);
 
+    // Face velocity of the non-conservative terms: the volume-fraction flux at alpha_L = alpha_R = 1
+    // (Huang 2026, Eq. 48), u*_K normal to the face and u_K along it (only the normal component is
+    // used). u*_K has the sign of S* (S_K - u_K and S_K - S* have the same sign), so the first-order
+    // update of alpha is upwind.
     amrex::Real sign_S_Star = Sign(S_Star);
     Vel_Riemann[0] = 0.5*(1.0 + sign_S_Star)*uL
                    + 0.5*(1.0 - sign_S_Star)*uR;
@@ -232,6 +242,8 @@ void Riemann_HLLC(TF& Flux_Riemann,
     Vel_Alpha2_p2_Riemann[2] = 0.5*(1.0 + sign_S_Star)*(wL*Alpha2_p2L + amrex::Real(ID_Dimension == 2)*Sm*(VL*Alpha2_p2L - S_Star*Alpha2_p2L_Star)/(S_Star - SL))
                              + 0.5*(1.0 - sign_S_Star)*(wR*Alpha2_p2R + amrex::Real(ID_Dimension == 2)*Sp*(VR*Alpha2_p2R - S_Star*Alpha2_p2R_Star)/(S_Star - SR));
 #endif
+    Vel_Riemann[ID_Dimension] += 0.5*(1.0 + sign_S_Star)*Sm*((SL - VL)/(SL - S_Star) - 1.0)
+                               + 0.5*(1.0 - sign_S_Star)*Sp*((SR - VR)/(SR - S_Star) - 1.0);
 
     for (int i_State = 0; i_State < 5+AMREX_SPACEDIM; ++i_State){
         Flux_Riemann[i_State] = 0.5*(1.0 + sign_S_Star)*(FluxL[i_State] + Sm*(ConservativeL_Star[i_State] - ConservativeL[i_State]))

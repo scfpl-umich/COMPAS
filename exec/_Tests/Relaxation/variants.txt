@@ -1,0 +1,59 @@
+# Runs of the Relaxation case, by scripts/test_cases.sh and test_cases.py. A line "[LABEL] ARGS"
+# starts the base run LABEL, built with "make ARGS" and run with "<exe> FILE" for inputs=FILE in
+# ARGS; the variant lines below it (a name and ParmParse overrides appended to that command
+# line) use the same executable. The labels are the names the runs had as separate cases.
+# Sections with the same BUILD share one build.
+
+[Relaxation-6Eq]    BUILD=6Eq     inputs=prob/inputs
+# The base inputs use air and water with gamma 4.4 and pinf 6e8 Pa (Saurel and Abgrall 1999),
+# stiffened gases, and the pressure relaxation. Every variant runs the relaxation test of step 0 on
+# the same 40 states (prob/ProblemICBC_6Eq.H) and aborts if an invariant is out of tolerance.
+# water-119  water with gamma 1.19, pinf 7.028e8
+# water-612  water with gamma 6.12, pinf 3.43e8 (Coralic and Colonius 2014)
+# pt         the pressure-temperature relaxation
+# nasg       NASG water (Le Metayer and Saurel 2016, covolume limit 1513 kg/m^3); state 17 is past
+#            the covolume limit
+# nasg-pt    the same with the pressure-temperature relaxation
+# nasg-vapor      NASG water vapor and liquid water (Le Metayer and Saurel 2016): q != 0 in both phases
+# nasg-vapor-pt   the same with the pressure-temperature relaxation
+# nasg-gas-covolume  a gas with a covolume and a heat of formation (b_1 = 1e-3, q_1 = 1e5, test values)
+#            and NASG water: both phases with b > 0
+# mie-gruneisen  constant-coefficient Mie-Gruneisen EOS: air, and water with a positive minimum
+#            pressure p_ref/(1 + Gamma) = 2.3e7 Pa, which several states are below
+# mie-gruneisen runs the relaxation test only (max_step = 0): most cells are water below its
+# minimum pressure, which the hyperbolic step is not meant for.
+# trace      Physics.pressure_relaxation_trace = 1e-2: the traces keep their volume fractions
+
+water-119      prob.EOS.gamma_2=1.19 prob.EOS.pinf_2=7.028e8
+water-612      prob.EOS.gamma_2=6.12 prob.EOS.pinf_2=3.43e8
+pt             Physics.pressure_relaxation=0 Physics.pressure_temperature_relaxation=1
+nasg           prob.EOS.EOS=3 prob.EOS.gamma_2=1.19 prob.EOS.pinf_2=7.028e8 prob.EOS.b_2=6.61e-4 prob.EOS.q_2=-1177788
+nasg-pt        prob.EOS.EOS=3 prob.EOS.gamma_2=1.19 prob.EOS.pinf_2=7.028e8 prob.EOS.b_2=6.61e-4 prob.EOS.q_2=-1177788 Physics.pressure_relaxation=0 Physics.pressure_temperature_relaxation=1
+nasg-vapor     prob.EOS.EOS=3 prob.EOS.gamma_1=1.47 prob.EOS.cv_1=955 prob.EOS.q_1=2077616 prob.EOS.gamma_2=1.19 prob.EOS.pinf_2=7.028e8 prob.EOS.b_2=6.61e-4 prob.EOS.q_2=-1177788
+nasg-vapor-pt  prob.EOS.EOS=3 prob.EOS.gamma_1=1.47 prob.EOS.cv_1=955 prob.EOS.q_1=2077616 prob.EOS.gamma_2=1.19 prob.EOS.pinf_2=7.028e8 prob.EOS.b_2=6.61e-4 prob.EOS.q_2=-1177788 Physics.pressure_relaxation=0 Physics.pressure_temperature_relaxation=1
+nasg-gas-covolume  prob.EOS.EOS=3 prob.EOS.b_1=1e-3 prob.EOS.q_1=1e5 prob.EOS.gamma_2=1.19 prob.EOS.pinf_2=7.028e8 prob.EOS.b_2=6.61e-4 prob.EOS.q_2=-1177788
+mie-gruneisen  max_step=0 prob.EOS.EOS=2 prob.EOS.gGamma_1=0.4 prob.EOS.pref_1=0 prob.EOS.eref_1=0 prob.EOS.gGamma_2=3.4 prob.EOS.pref_2=1e8 prob.EOS.eref_2=1e5
+trace          Physics.pressure_relaxation_trace=1e-2
+
+[Relaxation-6Eq-N]  BUILD=6Eq-N   inputs=prob/inputs.Relaxation-6Eq-N
+# The base inputs use air, water with gamma 4.4 and pinf 6e8 Pa (Saurel and Abgrall 1999) and a
+# liquid with gamma 7.15 and pinf 3e8 Pa, stiffened gases. Every variant runs the relaxation test of
+# step 0 on the same 40 states (prob/ProblemICBC_6Eq-N.H) and aborts if an invariant is out of tolerance.
+# water-119  water with gamma 1.19, pinf 7.028e8 and a liquid with gamma 2.35, pinf 1e9
+# water-612  water with gamma 6.12, pinf 3.43e8 (Coralic and Colonius 2014) and gamma 2.8, pinf 8.5e8
+# nasg       NASG water (Le Metayer and Saurel 2016, covolume limit 1513 kg/m^3), air and the liquid
+#            with b = q = 0; state 19 is past the covolume limit
+# nasg-all   three NASG phases with q != 0: water vapor and liquid water (Le Metayer and Saurel 2016),
+#            and the second liquid with b = 5e-4, q = -5e5 (test values)
+# mie-gruneisen  constant-coefficient Mie-Gruneisen EOS: the base air and water, and a liquid with a
+#            positive minimum pressure p_ref/(1 + Gamma) = 1.4e7 Pa, which several states are below.
+#            The relaxation test only (max_step = 0): the hyperbolic step is not meant for those
+#            states (the two liquids in tension of state 22 give NaN in the second step).
+# trace      Physics.pressure_relaxation_trace = 1e-2: the traces keep their volume fractions
+
+water-119      prob.EOS.gamma=1.4 1.19 2.35 prob.EOS.pinf=0 7.028e8 1e9
+water-612      prob.EOS.gamma=1.4 6.12 2.8 prob.EOS.pinf=0 3.43e8 8.5e8
+nasg           prob.EOS.EOS=3 prob.EOS.gamma=1.4 1.19 7.15 prob.EOS.pinf=0 7.028e8 3e8 prob.EOS.b=0 6.61e-4 0 prob.EOS.q=0 -1177788 0
+nasg-all       prob.EOS.EOS=3 prob.EOS.gamma=1.47 1.19 7.15 prob.EOS.pinf=0 7.028e8 3e8 prob.EOS.b=0 6.61e-4 5e-4 prob.EOS.q=2077616 -1177788 -5e5 prob.EOS.cv=955 3610 3610
+mie-gruneisen  max_step=0 prob.EOS.EOS=2 prob.EOS.gGamma=0.4 3.4 6.15 prob.EOS.pref=0 -2.64e9 1e8 prob.EOS.eref=0 0 1e5
+trace          Physics.pressure_relaxation_trace=1e-2

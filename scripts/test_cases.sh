@@ -72,6 +72,21 @@
 # before every run, except that a variant whose name starts with "+" continues from
 # the output of the previous run, e.g. to restart from its checkpoint.
 #
+# SEVERAL BUILDS OR BASE RUNS IN ONE CASE
+#
+# A line "[LABEL] ARGS" in variants.txt starts a section: the base run LABEL, built
+# with "make ARGS" and run with the inputs file given by inputs=FILE among ARGS
+# (default prob/inputs). The variant lines below it belong to it, for example
+#
+#     [Couette2Layer-6Eq]   BUILD=6Eq   inputs=prob/inputs.Couette2Layer-6Eq
+#     no-relaxation         max_step=20 Physics.pressure_relaxation=0
+#
+# Sections with the same make arguments share one build. Each build must write its
+# own executable (USERSuffix in the GNUmakefile); the runner asks make for it
+# ("make ARGS print-executable"). Without section lines a case is one build, run
+# with prob/inputs and named after its directory. --only matches the directory
+# name or the labels.
+#
 #===============================================================================
 
 set -o pipefail
@@ -233,17 +248,71 @@ for dir in "${TEST_BASE}"/*/; do
 done
 
 #############################################
-# Apply --only filter (safe substring match)
+# Sections of a case: "[LABEL] ARGS" lines of variants.txt
+#   parse_sections VARIANTS_FILE DEFAULT_LABEL fills
+#   S_LABEL[s], S_ARGS[s] (make arguments), S_INPUTS[s], and per variant line
+#   V_SEC[j] (its section), V_NAME[j], V_PLUS[j], V_OVR[j]
 #############################################
-if [ -n "${ONLY_PATTERN}" ]; then
-    FILTERED=()
-    for c in "${CASES[@]}"; do
-        if [[ "$c" == *"$ONLY_PATTERN"* ]]; then
-            FILTERED+=("$c")
+parse_sections() {
+    S_LABEL=(); S_ARGS=(); S_INPUTS=(); V_SEC=(); V_NAME=(); V_PLUS=(); V_OVR=()
+    local f="$1" raw line w lbl args inp n plus words=()
+    if ! { [ -f "$f" ] && grep -Eq '^[[:space:]]*\[[^]]+\]' "$f"; }; then
+        S_LABEL=("$2"); S_ARGS=(""); S_INPUTS=("./prob/inputs")
+    fi
+    [ -f "$f" ] || return 0
+    while IFS= read -r raw || [ -n "$raw" ]; do
+        line="$(printf '%s' "$raw" | tr -d '\r' | sed 's/#.*//;s/^[[:space:]]*//;s/[[:space:]]*$//')"
+        [ -z "$line" ] && continue
+        case "$line" in
+            \[*\]*)
+                lbl="${line#\[}"; lbl="${lbl%%\]*}"
+                read -r -a words <<< "${line#*\]}"
+                args=""; inp="./prob/inputs"
+                for w in "${words[@]}"; do
+                    case "$w" in inputs=*) inp="${w#inputs=}" ;; *) args="${args:+${args} }$w" ;; esac
+                done
+                S_LABEL+=("${lbl}"); S_ARGS+=("${args}"); S_INPUTS+=("${inp}")
+                continue ;;
+        esac
+        if [ ${#S_LABEL[@]} -eq 0 ]; then
+            error "${f}: variant line before the first [LABEL] line: ${line}"
+            return 1
         fi
+        read -r -a words <<< "$line"
+        n="${words[0]}"; plus=0
+        case "$n" in +*) plus=1; n="${n#+}" ;; esac
+        V_SEC+=($(( ${#S_LABEL[@]} - 1 ))); V_NAME+=("$n"); V_PLUS+=("$plus"); V_OVR+=("${words[*]:1}")
+    done < "$f"
+}
+
+#############################################
+# Apply --only filter (safe substring match on the directory name or on the labels);
+# CASE_SEL[i] is "*" (every base run of case i) or the labels to run
+#############################################
+FILTERED=(); CASE_SEL=(); ALL_LABELS=()
+for c in "${CASES[@]}"; do
+    parse_sections "${TEST_BASE}/${c}/variants.txt" "${c}" || exit 2
+    # Logs and summary rows are named by label, so a label may appear only once
+    for l in "${S_LABEL[@]}"; do
+        for x in "${ALL_LABELS[@]}"; do
+            if [ "${x%%	*}" = "$l" ]; then
+                error "Label ${l} is in both ${x#*	} and ${c}"
+                exit 2
+            fi
+        done
+        ALL_LABELS+=("${l}	${c}")
     done
-    CASES=("${FILTERED[@]}")
-fi
+    if [ -z "${ONLY_PATTERN}" ] || [[ "$c" == *"$ONLY_PATTERN"* ]]; then
+        FILTERED+=("$c"); CASE_SEL+=("*")
+        continue
+    fi
+    sel=""
+    for l in "${S_LABEL[@]}"; do
+        [[ "$l" == *"$ONLY_PATTERN"* ]] && sel="${sel:+${sel} }${l}"
+    done
+    if [ -n "${sel}" ]; then FILTERED+=("$c"); CASE_SEL+=("${sel}"); fi
+done
+CASES=("${FILTERED[@]}")
 
 N=${#CASES[@]}
 if [ $N -eq 0 ]; then
@@ -252,7 +321,14 @@ if [ $N -eq 0 ]; then
 fi
 
 header "Test Cases to Build + Run"
-for c in "${CASES[@]}"; do echo "  - $c"; done
+i=0
+for c in "${CASES[@]}"; do
+    parse_sections "${TEST_BASE}/${c}/variants.txt" "${c}" 2>/dev/null
+    if [ "${CASE_SEL[$i]}" != "*" ]; then echo "  - $c: ${CASE_SEL[$i]}"
+    elif [ ${#S_LABEL[@]} -eq 1 ] && [ "${S_LABEL[0]}" = "$c" ]; then echo "  - $c"
+    else echo "  - $c: ${S_LABEL[*]}"; fi
+    i=$((i+1))
+done
 echo ""
 
 #############################################
@@ -284,18 +360,18 @@ find_executable() {
 
 #############################################
 # Run the executable once and record the result
-#   run_one <label> <run_log> <build_seconds> [overrides...]
+#   run_one <label> <run_log> <build_seconds> <inputs> [overrides...]
 # Appends one row to the CSV file.
 #############################################
 run_one() {
-    local label="$1" run_log="$2" btime="$3"
-    shift 3
+    local label="$1" run_log="$2" btime="$3" inputs="$4"
+    shift 4
 
     local rstart rend rtime exit_code status cmd
     if [ "$MPI_RANKS" -eq 1 ]; then
-        cmd=("${executable}" ./prob/inputs "$@")
+        cmd=("${executable}" "${inputs}" "$@")
     else
-        cmd=(mpirun -n "${MPI_RANKS}" "${executable}" ./prob/inputs "$@")
+        cmd=(mpirun -n "${MPI_RANKS}" "${executable}" "${inputs}" "$@")
     fi
     vprint "Run command: ${cmd[*]}"
     vprint "Run log: ${run_log}"
@@ -350,19 +426,18 @@ clean_output() {
 }
 
 #############################################
-# Build + Run a single case and its variants
+# Build + Run a single case: each of its builds once, then its base runs and variants
+#   build_case <case> <index> <total> <selected labels or "*">
 #############################################
 build_case() {
-    local case="$1" idx="$2" total="$3"
+    local case="$1" idx="$2" total="$3" sel="$4"
     local case_dir="${TEST_BASE}/${case}"
-    local log="${LOG_DIR}/${case}.log"
-    local run_log="${LOG_DIR}/${case}_run.log"
 
     echo -e "${BLUE}[${idx}/${total}]${RESET} ${CYAN}${case}${RESET}"
 
     if [ ! -d "${case_dir}" ]; then
         error "Missing directory: ${case_dir}"
-        gh_error "Missing test directory: ${case_dir}" "${log}"
+        gh_error "Missing test directory: ${case_dir}" "${LOG_DIR}/${case}.log"
         echo "${case},FAILED,SKIP,0,0,0" >> "${CSV_FILE}"
         return
     fi
@@ -372,77 +447,144 @@ build_case() {
     (
         cd "${case_dir}" || { error "cd failed"; exit 1; }
 
-        ########################################
-        # BUILD
-        ########################################
-        bstart=$(date +%s)
+        if ! parse_sections variants.txt "${case}"; then
+            echo "${case},FAILED,SKIP,0,0,0" >> "${CSV_FILE}"
+            exit 0
+        fi
+        local ns=${#S_LABEL[@]} nv=${#V_NAME[@]} s j b
+        local nbuilds
+        nbuilds=$(printf '%s\n' "${S_ARGS[@]}" | sort -u | wc -l | tr -d ' ')
 
         vprint "Case directory: ${case_dir}"
         vprint "Running: make realclean"
-        make realclean > /dev/null 2>&1 || true
+        read -r -a margv <<< "${S_ARGS[0]}"
+        make "${margv[@]}" realclean > /dev/null 2>&1 || true
 
-        vprint "Build command: make -j ${DEFAULT_JOBS} ${MAKE_OPTS[*]}"
-        vprint "Build log: ${log}"
-        if make -j "${DEFAULT_JOBS}" "${MAKE_OPTS[@]}" > "${log}" 2>&1; then
-            bend=$(date +%s)
-            btime=$((bend - bstart))
-            success "✔ ${case} built in ${btime}s"
-        else
-            bend=$(date +%s)
-            btime=$((bend - bstart))
-            error "✖ Build failed (${btime}s)"
-            gh_error "Build failed" "${log}"
+        BUILT_ARGS=(); BUILT_EXE=(); BUILT_STATUS=()
+        # Each build must write its own executable: ask make before building anything (after
+        # a build is too late, it has overwritten the executable of an earlier build)
+        local pa=() pe=() e
+        s=0
+        while [ $s -lt $ns ]; do
+            b=0; e=""
+            while [ $b -lt ${#pa[@]} ]; do [ "${pa[$b]}" = "${S_ARGS[$s]}" ] && e=seen; b=$((b+1)); done
+            if [ -z "$e" ]; then
+                read -r -a margv <<< "${S_ARGS[$s]}"
+                e="$(make --no-print-directory "${margv[@]}" "${MAKE_OPTS[@]}" print-executable 2>/dev/null \
+                     | sed -n 's/^executable is \([^ ]*\) *$/\1/p' | head -1)"
+                b=0
+                while [ $b -lt ${#pe[@]} ]; do
+                    if [ -n "$e" ] && [ "${pe[$b]}" = "$e" ]; then
+                        error "✖ make ${pa[$b]} and make ${S_ARGS[$s]} write the same executable ${e}; give each build its own USERSuffix"
+                        BUILT_ARGS+=("${pa[$b]}" "${S_ARGS[$s]}"); BUILT_EXE+=("" ""); BUILT_STATUS+=(NOEXE NOEXE)
+                    fi
+                    b=$((b+1))
+                done
+                pa+=("${S_ARGS[$s]}"); pe+=("$e")
+            fi
+            s=$((s+1))
+        done
+        s=0
+        while [ $s -lt $ns ]; do
+            local label="${S_LABEL[$s]}" margs="${S_ARGS[$s]}" inputs="${S_INPUTS[$s]}"
+            if [ "${sel}" != "*" ] && [[ " ${sel} " != *" ${label} "* ]]; then s=$((s+1)); continue; fi
 
-            gh_group "Build log (tail)"
-            tail -n "${TAIL_LINES}" "${log}"
-            gh_endgroup
-
-            echo "${case},FAILED,SKIP,${btime},0,${btime}" >> "${CSV_FILE}"
-            exit 0
-        fi
-
-        ########################################
-        # LOCATE EXECUTABLE
-        ########################################
-        executable="$(find_executable)"
-        if [ -z "$executable" ]; then
-            error "No executable (*.ex) found"
-            echo "${case},OK,NOEXE,${btime},0,${btime}" >> "${CSV_FILE}"
-            exit 0
-        fi
-        vprint "Executable found: ${executable}"
-
-        ########################################
-        # RUN (base inputs)
-        ########################################
-        clean_output
-        run_one "${case}" "${run_log}" "${btime}"
-
-        ########################################
-        # RUN (variants)
-        ########################################
-        if [ "$RUN_VARIANTS" -eq 1 ] && [ -f variants.txt ]; then
-            while IFS= read -r raw || [ -n "$raw" ]; do
-                line="$(printf '%s' "$raw" | tr -d '\r' | sed 's/#.*//;s/^[[:space:]]*//;s/[[:space:]]*$//')"
-                [ -z "$line" ] && continue
-                read -r -a words <<< "$line"
-                vname="${words[0]}"
-                overrides=("${words[@]:1}")
-                if [[ "$vname" == +* ]]; then
-                    vname="${vname#+}"
+            ########################################
+            # BUILD (once per set of make arguments)
+            ########################################
+            local btime=0 bstatus="" found=-1
+            executable=""
+            b=0
+            while [ $b -lt ${#BUILT_ARGS[@]} ]; do
+                [ "${BUILT_ARGS[$b]}" = "${margs}" ] && found=$b
+                b=$((b+1))
+            done
+            if [ $found -ge 0 ]; then
+                executable="${BUILT_EXE[$found]}"; bstatus="${BUILT_STATUS[$found]}"
+            else
+                local log="${LOG_DIR}/${label}.log"
+                read -r -a margv <<< "${margs}"
+                bstart=$(date +%s)
+                vprint "Build command: make -j ${DEFAULT_JOBS} ${margs:+${margs} }${MAKE_OPTS[*]}"
+                vprint "Build log: ${log}"
+                if make -j "${DEFAULT_JOBS}" "${margv[@]}" "${MAKE_OPTS[@]}" > "${log}" 2>&1; then
+                    bend=$(date +%s); btime=$((bend - bstart))
+                    success "✔ ${label} built in ${btime}s"
+                    bstatus=OK
+                    ########################################
+                    # LOCATE EXECUTABLE
+                    ########################################
+                    executable="$(make --no-print-directory "${margv[@]}" "${MAKE_OPTS[@]}" print-executable 2>/dev/null \
+                                  | sed -n 's/^executable is \([^ ]*\) *$/\1/p' | head -1)"
+                    [ -n "${executable}" ] && [ -f "${executable}" ] && executable="./${executable}" || executable=""
+                    if [ -z "${executable}" ] && [ "${nbuilds}" -eq 1 ]; then executable="$(find_executable)"; fi
+                    if [ -z "$executable" ]; then
+                        error "No executable (*.ex) found"
+                        bstatus=NOEXE
+                    else
+                        vprint "Executable found: ${executable}"
+                        b=0
+                        while [ $b -lt ${#BUILT_EXE[@]} ]; do
+                            if [ "${BUILT_EXE[$b]}" = "${executable}" ]; then
+                                error "✖ make ${BUILT_ARGS[$b]} and make ${margs} write the same executable ${executable}; give each build its own USERSuffix"
+                                bstatus=NOEXE
+                            fi
+                            b=$((b+1))
+                        done
+                    fi
                 else
-                    clean_output
+                    bend=$(date +%s); btime=$((bend - bstart))
+                    error "✖ Build failed (${btime}s)"
+                    gh_error "Build failed" "${log}"
+
+                    gh_group "Build log (tail)"
+                    tail -n "${TAIL_LINES}" "${log}"
+                    gh_endgroup
+                    bstatus=FAILED
                 fi
-                run_one "${case}:${vname}" "${LOG_DIR}/${case}__${vname}_run.log" 0 "${overrides[@]}"
-            done < variants.txt
-        fi
+                # Keep the disk use to one build's object files
+                [ "${nbuilds}" -gt 1 ] && rm -rf tmp_build_dir
+                BUILT_ARGS+=("${margs}"); BUILT_EXE+=("${executable}"); BUILT_STATUS+=("${bstatus}")
+            fi
+            if [ "${bstatus}" = "FAILED" ]; then
+                echo "${label},FAILED,SKIP,${btime},0,${btime}" >> "${CSV_FILE}"
+                s=$((s+1)); continue
+            fi
+            if [ "${bstatus}" = "NOEXE" ]; then
+                echo "${label},OK,NOEXE,${btime},0,${btime}" >> "${CSV_FILE}"
+                s=$((s+1)); continue
+            fi
+
+            ########################################
+            # RUN (base inputs)
+            ########################################
+            clean_output
+            run_one "${label}" "${LOG_DIR}/${label}_run.log" "${btime}" "${inputs}"
+
+            ########################################
+            # RUN (variants)
+            ########################################
+            if [ "$RUN_VARIANTS" -eq 1 ]; then
+                j=0
+                while [ $j -lt $nv ]; do
+                    if [ "${V_SEC[$j]}" = "$s" ]; then
+                        [ "${V_PLUS[$j]}" = "1" ] || clean_output
+                        read -r -a overrides <<< "${V_OVR[$j]}"
+                        run_one "${label}:${V_NAME[$j]}" "${LOG_DIR}/${label}__${V_NAME[$j]}_run.log" 0 "${inputs}" "${overrides[@]}"
+                    fi
+                    j=$((j+1))
+                done
+            fi
+            s=$((s+1))
+        done
 
         if [ "$DONT_CLEAN" -eq 0 ]; then
             vprint "Executing ${CLEAN_SCRIPT}"
             clean_output
         fi
         vprint "Running final make realclean"
-        make realclean > /dev/null 2>&1
+        read -r -a margv <<< "${S_ARGS[0]}"
+        make "${margv[@]}" realclean > /dev/null 2>&1
 
         exit 0
     )
@@ -459,7 +601,7 @@ echo ""
 
 i=1
 for case in "${CASES[@]}"; do
-    build_case "${case}" "${i}" "${N}"
+    build_case "${case}" "${i}" "${N}" "${CASE_SEL[$((i-1))]}"
     i=$((i+1))
 done
 

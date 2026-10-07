@@ -25,6 +25,24 @@
 // receives no heat, and since w <= 2 min(a_m, a_c) the explicit stability limit stays bounded
 // by the phase's own heat capacity.
 //
+// PhaseDiffusion_FaceViscosity_D: the viscosity of a face from the mixture viscosities of its
+// two cells, their harmonic mean 2 mu_m mu_c/(mu_m + mu_c) (0 if both are 0). Across a material
+// interface parallel to the face the traction is continuous and the normal velocity gradient
+// jumps, so the two half cells act in series: with the harmonic mean a layered shear flow
+// across a sharp interface that lies on a cell face is exact, while the arithmetic mean
+// overestimates the face viscosity and gives a first-order interface error. An interface inside
+// a cell (a mixed cell, with the mixture viscosity) keeps a first-order error. The mean is written as mu_m (2 mu_c/(mu_m + mu_c)),
+// which is mu_m exactly where mu_m = mu_c (a uniform mixture). A negative cell value (a mixture
+// coefficient formed from a volume fraction outside [0, 1]) counts as 0: the harmonic mean of
+// signed values has a pole at mu_m = -mu_c and would give a negative, unbounded face value.
+// With the clamp the face value lies between 0 and 2 min(mu_m, mu_c), and non-negative cell
+// values give the same face value as without it.
+//
+// PhaseDiffusion_DissipationFraction_D: the volume fraction with which a phase takes its share
+// alpha_k Phi_k of the viscous dissipation, alpha_k where the phase has mass (alpha_k > 0 and
+// alpha_k rho_k > 0) and 0 elsewhere, so a massless trace (a round-off alpha_k, or a negative one)
+// receives no energy.
+//
 // ViscousDissipation_D: the dissipation tau : grad u of a phase with the stress
 //   tau = mu (grad u + grad u^T) + (muB - 2/3 mu)(div u) I,
 //   Phi = mu (d_i u_j + d_j u_i) d_j u_i + (muB - 2/3 mu)(div u)^2
@@ -54,6 +72,26 @@ void PhaseDiffusion_FaceWeight_D(amrex::Real& Weight,
                                  bool Present_c)
 {
     Weight = (Present_m && Present_c) ? 2.0*Alpha_m*Alpha_c/(Alpha_m + Alpha_c) : 0.0;
+}
+
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+void PhaseDiffusion_FaceViscosity_D(amrex::Real& mu_Face,
+                                    amrex::Real const& mu_m,
+                                    amrex::Real const& mu_c)
+{
+    amrex::Real const mu_mp = (mu_m < 0.0) ? 0.0 : mu_m;
+    amrex::Real const mu_cp = (mu_c < 0.0) ? 0.0 : mu_c;
+    amrex::Real const Sum = mu_mp + mu_cp;
+    mu_Face = (Sum > 0.0) ? mu_mp*(2.0*mu_cp/Sum) : 0.0;
+}
+
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+amrex::Real PhaseDiffusion_DissipationFraction_D(amrex::Real const& Alpha,
+                                                 amrex::Real const& Alpha_rho)
+{
+    return (Alpha > 0.0 && Alpha_rho > 0.0) ? Alpha : 0.0;
 }
 
 AMREX_GPU_HOST_DEVICE

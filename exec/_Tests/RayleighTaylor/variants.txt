@@ -1,0 +1,9 @@
+# Runs of the RayleighTaylor case, by scripts/test_cases.sh and test_cases.py. A line "[LABEL] ARGS"
+# starts the base run LABEL, built with "make ARGS" and run with "<exe> FILE" for inputs=FILE in
+# ARGS; the variant lines below it (a name and ParmParse overrides appended to that command
+# line) use the same executable. The labels are the names the runs had as separate cases.
+# Sections with the same BUILD share one build.
+
+[RayleighTaylor-5Eq]     BUILD=2D      inputs=prob/inputs
+
+[RayleighTaylor-3D-5Eq]  BUILD=3D      inputs=prob/inputs.RayleighTaylor-3D-5Eq
