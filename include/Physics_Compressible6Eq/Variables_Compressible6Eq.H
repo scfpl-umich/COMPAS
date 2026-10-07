@@ -30,5 +30,13 @@ enum StateIndex{
     INDEX_VolumeFraction1 = 4+AMREX_SPACEDIM
 };/**< Enumerator for variable indices */
 
+#if (DIFFUSION == true)
+/** Non-conservative face component with the viscous energy flux (u.tau)_n, plus the heat flux of the
+    mixture with the pressure-temperature relaxation (see NC_TERMS in Macros.H) */
+enum NCIndex{
+    INDEX_NC_ViscousWork  = 4
+};
+#endif
+
 #endif
 #endif

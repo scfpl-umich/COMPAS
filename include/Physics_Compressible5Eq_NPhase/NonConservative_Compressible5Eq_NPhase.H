@@ -15,9 +15,13 @@ AMREX_FORCE_INLINE
 void NonConservative(amrex::Array<amrex::Real,NPHASE>& K,
                      amrex::Real const& p,
                      amrex::Array<amrex::Real,NPHASE> const& Alpha,
+                     amrex::Array<amrex::Real,NPHASE> const& Alpha_rho,
                      Parm const& EOS_Parameter,
                      int ID_K)
 {
+    // K_k = rho c^2/(gamma_k (p + pinf_k)) - 1. For NASG the true Kapila coefficient is
+    // alpha_k (1 + K_k^true) = phi_k (1 + K_k), with phi_k = alpha_k - b_k alpha_k rho_k: the callers
+    // multiply (1 + K_k) by phi_k (alpha_k for the other EOS).
     //K_p = 0
     if (ID_K == 0){
         for (int i_Phase = 0; i_Phase < NPHASE; i_Phase++){
@@ -40,6 +44,7 @@ void NonConservative(amrex::Array<amrex::Real,NPHASE>& K,
         rho_c2_Mixture(rho_c2,
                        rhop_cp2,
                        Alpha,
+                       Alpha_rho,
                        EOS_Parameter,
                        ID_K);
         

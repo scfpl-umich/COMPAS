@@ -56,6 +56,11 @@ public:
     Relaxation (MultiFab& mf,
 				Parm const* parm);
 
+    // Relaxes the cells of mf that differ from state_unrefluxed (the cells the reflux corrected)
+    void
+    RelaxRefluxedCells (MultiFab& mf,
+                        MultiFab const& state_unrefluxed);
+
 };
 
 

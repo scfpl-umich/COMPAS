@@ -64,4 +64,8 @@ CEXE_headers += FDM_Curvature_CenterFromCenter_K.H
 CEXE_headers += FDM_Laplace_D.H
 CEXE_headers += FDM_Laplace_K.H
 
+CEXE_headers += FDM_FaceVelocityGradient_D.H
+CEXE_headers += FDM_CellVelocityGradient_D.H
+CEXE_headers += PhaseDiffusion_D.H
+
 CEXE_headers += THINC_Select_K.H

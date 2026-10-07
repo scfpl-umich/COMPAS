@@ -8,80 +8,73 @@
 #define FluxDiffusion_Compressible6Eq_IE_NPhase_H_
 
 #include<Macros.H>
-#if (PHYSICS==SIXEQS_IE_NPHASE)
+#if (PHYSICS==SIXEQS_IE_NPHASE && DIFFUSION == true)
+
+// =======================================
+// Viscous and conductive face flux of the N-phase six-equation model (internal energy form),
+// face normal e_d (d = ID_Dimension). The core solves U_t = -div(F - F_D) with F_D this flux.
+//
+// The mixture stress tau = sum_k alpha_k tau_k, with tau_k = mu_k (grad u + grad u^T)
+// + (muB_k - 2/3 mu_k)(div u) I, uses the face viscosities mu and mub, the harmonic means of
+// the mixture viscosities sum_k alpha_k mu_k of the two cells (PhaseDiffusion_FaceViscosity_D):
+//   momentum                       tau . e_d
+//   phase internal energy k        q_k = w_k kappa_k dT_k/dx_d
+//   total energy rho E             u_f . tau . e_d + sum_k q_k
+// Each phase conducts with its own temperature and the harmonic face volume fraction w_k
+// (PhaseDiffusion_FaceWeight_D). The heat flux of rho E is the sum of the phase heat fluxes,
+// so the mixture energy is conservative. The viscous dissipation alpha_k tau_k : grad u of the
+// phase internal energies is a cell source in FVM_SurfaceIntegral_NC.
+//
+// dmax, for the time step vnn dx^2/dmax, is a diffusivity: the larger of the momentum
+// diffusivity (4/3 mu + mub)/rho, with rho the smaller of the two cell densities, and
+// Chi_T, the largest thermal diffusivity of the phases that conduct through the face.
+// =======================================
 
 AMREX_GPU_DEVICE
 AMREX_FORCE_INLINE
 void FluxDiffusion(amrex::Array<amrex::Real,NSTATE>& Flux,
                    amrex::Real& dmax,
-                   amrex::Array<amrex::Real,AMREX_SPACEDIM>& tau,
                    amrex::Array<amrex::Real,AMREX_SPACEDIM> const& Vel,
                    amrex::Array<amrex::Array<amrex::Real,AMREX_SPACEDIM>,AMREX_SPACEDIM> const& Grad_Vel,
-                   amrex::Real const& Grad_T,
+                   amrex::Array<amrex::Real,NPHASE> const& Weight,
+                   amrex::Array<amrex::Real,NPHASE> const& Grad_T,
                    amrex::Real const& mu,
                    amrex::Real const& mub,
-                   amrex::Real const& Kappa,
+                   amrex::Real const& rho,
+                   amrex::Real const& Chi_T,
+                   Parm const& EOS_Parameter,
                    int ID_Dimension)
 {
-    amrex::Real tau_u;
-#if (AMREX_SPACEDIM > 1)
-    amrex::Real tau_v;
-#endif
-#if (AMREX_SPACEDIM > 2)
-    amrex::Real tau_w;
-#endif
-    amrex::Real tau_b;
-    amrex::Real Work;
-    amrex::Real qC;
-    
-    tau_u = mu*(Grad_Vel[0][ID_Dimension] + Grad_Vel[ID_Dimension][0]);
-    Work = Vel[0]*tau_u;
-    tau[0] = tau_u;
-    // amrex::Print()<<"mu: "<<mu<<" mub: "<<mub<<" Kappa: "<<Kappa<<"\n";
-    // amrex::Print()<<"Vel u: "<<Vel[0]<<" v: "<<Vel[1]<<"\n";
-    // amrex::Print()<<"GradV [0][0]: "<<Grad_Vel[0][0]<<" GradV [0][1]: "<<Grad_Vel[0][1]<<"\n";
-    // amrex::Print()<<"GradV [1][0]: "<<Grad_Vel[1][0]<<" GradV [1][1]: "<<Grad_Vel[1][1]<<"\n";
-#if (AMREX_SPACEDIM > 1)
-    tau_v = mu*(Grad_Vel[1][ID_Dimension] + Grad_Vel[ID_Dimension][1]);
-    Work += Vel[1]*tau_v;
-    tau[1] = tau_v;
-#endif
-#if (AMREX_SPACEDIM > 2)
-    tau_w = mu*(Grad_Vel[2][ID_Dimension] + Grad_Vel[ID_Dimension][2]);
-    Work += Vel[2]*tau_w;
-    tau[2] = tau_w;
-#endif
+    amrex::Array<amrex::Real,AMREX_SPACEDIM> tau;
+    amrex::Real Work = 0.0;
+    for (int j = 0; j < AMREX_SPACEDIM; ++j){
+        tau[j] = mu*(Grad_Vel[j][ID_Dimension] + Grad_Vel[ID_Dimension][j]);
+        Work += Vel[j]*tau[j];
+    }
     amrex::Real Div_Vel = AMREX_D_TERM( Grad_Vel[0][0],
                                       + Grad_Vel[1][1],
                                       + Grad_Vel[2][2] );
-    tau_b = (mub - 2.0/3.0*mu)*Div_Vel;
+    amrex::Real tau_b = (mub - 2.0/3.0*mu)*Div_Vel;
     Work += Vel[ID_Dimension]*tau_b;
-    qC = Kappa*Grad_T;
-    
-    //Diffusion flux
-    for(int i_state=0; i_state < NSTATE; ++i_state){
-        Flux[i_state] = 0.;
+
+    for (int iState = 0; iState < NSTATE; ++iState){
+        Flux[iState] = 0.0;
     }
 
-    Flux[ru] = tau_u;
-    
-    // Flux[2] = tau_u;
-#if (AMREX_SPACEDIM > 1)
-    // Flux[3] = tau_v;
-    Flux[rv] = tau_v;
-#endif
-#if (AMREX_SPACEDIM > 2)
-    // Flux[4] = tau_w;
-    Flux[rw] = tau_w;
-#endif
-    Flux[rE] = Work + qC;
+    amrex::Real qC = 0.0;
+    for (int i_Phase = 0; i_Phase < NPHASE; ++i_Phase){
+        amrex::Real qC_Phase = Weight[i_Phase]*EOS_Parameter.kappa[i_Phase]*Grad_T[i_Phase];
+        Flux[INDEX_Energy1 + i_Phase] = qC_Phase;
+        qC += qC_Phase;
+    }
 
-    Flux[ru+ID_Dimension] += tau_b;
+    for (int j = 0; j < AMREX_SPACEDIM; ++j){
+        Flux[INDEX_MomentumX + j] = tau[j];
+    }
+    Flux[INDEX_MomentumX + ID_Dimension] += tau_b;
+    Flux[INDEX_Total_Energy] = Work + qC;
 
-    // amrex::Print()<<"tau_u "<<tau_u<<" tau_v: "<<tau_v<<" Work "<<Work<<" qC "<<qC<<"\n";
-    
-    dmax = mu + (mub - 2.0/3.0*mu) + Kappa;
-    
+    dmax = std::max((4.0/3.0*mu + mub)/rho, Chi_T);
 }
 
 #endif

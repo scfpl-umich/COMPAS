@@ -48,7 +48,9 @@ void FVM_SurfaceIntegral_NC(int i, int j, int k,
 
     for (int i_Phase = 0; i_Phase < NPHASE; i_Phase++){
         amrex::Real Alphai = Conservative[INDEX_VolumeFraction1+i_Phase];
-        dof_out(i,j,k,INDEX_VolumeFraction1+i_Phase) += Alphai*(1.0 + K[i_Phase])*Div_Vel;
+        // Kapila coefficient alpha_k (1 + K_k) = phi_k (1 + K_k) for NASG (see NonConservative)
+        amrex::Real Phii = (ID_K == 1) ? NASG_Phi(Alphai, Conservative[INDEX_Mass1+i_Phase], EOS_Parameter.C[i_Phase]) : Alphai;
+        dof_out(i,j,k,INDEX_VolumeFraction1+i_Phase) += Phii*(1.0 + K[i_Phase])*Div_Vel;
     }
     
 }

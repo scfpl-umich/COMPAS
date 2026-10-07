@@ -283,29 +283,56 @@ inputs also run with `PHYSICS=FIVEEQS_NPHASE`, and `run.slurm` is a template for
 ## Test cases
 
 The cases in `exec/_Tests/` are small. The [test suite](user-guide/testing.md) builds and runs
-all of them, and each is also a starting point for a new case.
+all of them, and each is also a starting point for a new case. The directories with a `BUILD`
+in the table hold one problem (`Diffusion` several) with one build per model (per dimension in
+`RayleighTaylor`), chosen with `BUILD` on the `make` line, and several base runs, named by their
+labels; the others are one case each.
+The first base run of the default build reads `prob/inputs`, the others
+`prob/inputs.<label>`
+([Several builds and base runs in one case](user-guide/testing.md#several-builds-and-base-runs-in-one-case)).
+For example, `Sod-6Eq` is
 
-| Case | Model | Dim | Problem and what it tests |
-|---|---|---|---|
-| `Advection-5Eq` | `FIVEEQS` | 2 | Four shapes advected in a periodic box ([interface advection](verification.md#interface-advection)); base test of the model, with variants for every method |
-| `Advection-5Eq-N` | `FIVEEQS_NPHASE`, 5 phases | 2 | Four shapes of four materials; base test of the model, with THINC |
-| `Advection-6Eq` | `SIXEQS` | 2 | Four shapes; base test of the model, with pressure relaxation and ACDI |
-| `Advection-6Eq-N` | `SIXEQS_IE_NPHASE`, 5 phases | 2 | Four shapes of four materials; base test of the model, with pressure relaxation and ACDI |
-| `Advection-Viscous-5Eq-N` | `FIVEEQS_NPHASE`, 5 phases | 2 | Four shapes with viscosity and heat conduction in every material |
-| `Advection-THINC-5Eq` | `FIVEEQS` | 2 | `Advection-5Eq` with THINC |
-| `Advection-PF-5Eq` | `FIVEEQS` | 2 | `Advection-5Eq` with implicit CAC-Adv Phase-Field regularization |
-| `COMPAS-STL-5Eq` | `FIVEEQS` | 2 | A solid read from an STL file falls into a pool; STL reader, gravity source term, viscosity, THINC, on CPUs |
-| `RichtmyerMeshkov-5Eq` | `FIVEEQS` | 2 | Single-mode Richtmyer-Meshkov instability ([against experiment](verification.md#single-mode-richtmyer-meshkov-instability)); interface diagnostics with ghost cells, checkpoint and restart |
-| `RichtmyerMeshkov-Multimode-5Eq` | `FIVEEQS` | 2 | Multimode Richtmyer-Meshkov instability; parameter arrays sized at run time and copied to the GPU |
-| `RayleighTaylor-5Eq` | `FIVEEQS` | 2 | Single-mode Rayleigh-Taylor instability ([against theory](verification.md#single-mode-rayleigh-taylor-instability)); gravity source term, viscosity, THINC |
-| `RayleighTaylor-3D-5Eq` | `FIVEEQS` | 3 | 3D Rayleigh-Taylor instability; 3D build, gravity source term, viscosity |
-| `Jet-Inflow-5Eq` | `FIVEEQS` | 2 | Gas jet injected into a box with an outflow face; Robin user boundary function on an inflow face |
-| `NonsphericalCollapse-6Eq` | `SIXEQS` | 3 | Gas bubble collapsing near a wall (Johnsen and Colonius 2009); pressure relaxation, THINC, user refinement tagging, no subcycling |
-| `ShockVortex-5Eq` | `FIVEEQS` | 2 | Vortex through a stationary shock; quadrature WENO5 with AMR |
-| `ViscousShockTube-5Eq` | `FIVEEQS` | 2 | Viscous shock tube of Daru and Tenaud; quadrature WENO5 with viscous fluxes and no-slip walls |
-| `IsentropicVortex-5Eq` | `FIVEEQS` | 2 | Isentropic vortex over one period; quadrature WENO5, the [order-of-accuracy](verification.md#order-of-accuracy) case |
-| `Sod-5Eq` | `FIVEEQS` | 3 | [Sod shock tube](verification.md#sod-shock-tube) with AMR and outflow boundaries; variants along $y$ and $z$, between walls, and the [water-air shock tube](verification.md#water-air-shock-tube) |
-| `Sod-5Eq-N` | `FIVEEQS_NPHASE`, 2 phases | 3 | As `Sod-5Eq` |
-| `Sod-6Eq` | `SIXEQS` | 3 | As `Sod-5Eq`, with pressure relaxation |
-| `Sod-6Eq-N` | `SIXEQS_IE_NPHASE`, 2 phases | 3 | As `Sod-5Eq`, with pressure relaxation |
-| `ShuOsher-5Eq` | `FIVEEQS` | 2 | [Shu-Osher](verification.md#shu-osher-problem) shock-entropy wave interaction with AMR; variants compare the reconstruction schemes |
+```bash
+cd exec/_Tests/Sod
+make -j4 BUILD=6Eq
+mpirun -n 4 ./main3d.gnu.MPI.6Eq.ex prob/inputs.Sod-6Eq
+```
+
+| Case (label) | Directory, `BUILD` | Model | Dim | Problem and what it tests |
+|---|---|---|---|---|
+| `Advection-5Eq` | `Advection`, `5Eq` (default) | `FIVEEQS` | 2 | Four shapes advected in a periodic box ([interface advection](verification.md#interface-advection)); base test of the model, with variants for every method |
+| `Advection-5Eq-N` | `Advection`, `5Eq-N` | `FIVEEQS_NPHASE`, 5 phases | 2 | Four shapes of four materials; base test of the model, with THINC |
+| `Advection-6Eq` | `Advection`, `6Eq` | `SIXEQS` | 2 | Four shapes; base test of the model, with pressure relaxation and ACDI |
+| `Advection-6Eq-N` | `Advection`, `6Eq-N` | `SIXEQS_IE_NPHASE`, 5 phases | 2 | Four shapes of four materials; base test of the model, with pressure relaxation and ACDI |
+| `Advection-THINC-5Eq` | `Advection`, `5Eq` (default) | `FIVEEQS` | 2 | `Advection-5Eq` with THINC |
+| `Advection-PF-5Eq` | `Advection`, `5Eq` (default) | `FIVEEQS` | 2 | `Advection-5Eq` with implicit CAC-Adv Phase-Field regularization |
+| `Couette2Layer-5Eq` | `Diffusion`, `5Eq` (default) | `FIVEEQS` | 2 | [Two-layer Couette flow](verification.md#two-layer-couette-flow) with a moving wall (user boundary condition), viscosity ratio 10; the arithmetic face viscosity of the five-equation models |
+| `Couette2Layer-6Eq` | `Diffusion`, `6Eq` | `SIXEQS` | 2 | As `Couette2Layer-5Eq`; harmonic face viscosity, exact steady profile across a sharp interface on a cell face; a variant with the interface in the middle of a cell (first-order error) |
+| `Couette2Layer-6Eq-N` | `Diffusion`, `6Eq-N` | `SIXEQS_IE_NPHASE`, 2 phases | 2 | As `Couette2Layer-6Eq` |
+| `HeatConduction2Mat-5Eq` | `Diffusion`, `5Eq` (default) | `FIVEEQS` | 2 | [Conduction between two different ideal gases](verification.md#conduction-between-two-materials), against the exact interface temperature and erf profiles |
+| `HeatConduction2Mat-6Eq` | `Diffusion`, `6Eq` | `SIXEQS` | 2 | As `HeatConduction2Mat-5Eq`; mixture heat flux with pressure-temperature relaxation, also across a sharp interface |
+| `HeatConduction2Mat-6Eq-N` | `Diffusion`, `6Eq-N` | `SIXEQS_IE_NPHASE`, 2 phases | 2 | As `HeatConduction2Mat-6Eq`; no heat passes between the phases (known limitation) |
+| `ViscousShockTube-5Eq` | `Diffusion`, `5Eq` (default) | `FIVEEQS` | 2 | [Viscous shock tube](verification.md#viscous-shock-tube) of Daru and Tenaud; WENO5 with viscous fluxes and no-slip walls |
+| `ViscousShockTube-6Eq` | `Diffusion`, `6Eq` | `SIXEQS` | 2 | `ViscousShockTube-5Eq` with one gas in the six-equation model; WENO5 with viscous fluxes and no-slip walls |
+| `ViscousShockTube-6Eq-N` | `Diffusion`, `6Eq-N` | `SIXEQS_IE_NPHASE`, 2 phases | 2 | As `ViscousShockTube-6Eq` |
+| `Advection-Viscous-6Eq` | `Diffusion`, `6Eq` | `SIXEQS` | 2 | A liquid drop advected in gas with viscosity and heat conduction; uniform pressure, velocity and phase temperatures |
+| `Advection-Viscous-6Eq-N` | `Diffusion`, `6Eq-N3` | `SIXEQS_IE_NPHASE`, 3 phases | 2 | As `Advection-Viscous-6Eq`, with a third phase that stays exactly absent |
+| `Advection-Viscous-5Eq-N` | `Diffusion`, `5Eq-N` | `FIVEEQS_NPHASE`, 5 phases | 2 | Four shapes with viscosity and heat conduction in every material |
+| `Sod-5Eq` | `Sod`, `5Eq` (default) | `FIVEEQS` | 3 | [Sod shock tube](verification.md#sod-shock-tube) with AMR and outflow boundaries; variants along $y$ and $z$, between walls, and the [water-air shock tube](verification.md#water-air-shock-tube) |
+| `Sod-5Eq-N` | `Sod`, `5Eq-N` | `FIVEEQS_NPHASE`, 2 phases | 3 | As `Sod-5Eq` |
+| `Sod-6Eq` | `Sod`, `6Eq` | `SIXEQS` | 3 | As `Sod-5Eq`, with pressure relaxation; the water-air tube also on 512 uniform cells |
+| `Sod-6Eq-N` | `Sod`, `6Eq-N` | `SIXEQS_IE_NPHASE`, 2 phases | 3 | As `Sod-5Eq`, with pressure relaxation |
+| `NASG-5Eq` | `NASG`, `5Eq` (default) | `FIVEEQS` | 2 | Noble-Abel stiffened gas: [air-water](verification.md#noble-abel-stiffened-gas) and water shock tubes with liquid water of Le Métayer and Saurel (2016), a water drop advected at uniform pressure and velocity, and $b = q = 0$ against the stiffened gas; conservation and covolume diagnostics in CSV |
+| `NASG-5Eq-N` | `NASG`, `5Eq-N` | `FIVEEQS_NPHASE`, 2 phases | 2 | As `NASG-5Eq` |
+| `NASG-6Eq` | `NASG`, `6Eq` | `SIXEQS` | 2 | As `NASG-5Eq`, with pressure and pressure-temperature relaxation |
+| `NASG-6Eq-N` | `NASG`, `6Eq-N` | `SIXEQS_IE_NPHASE`, 2 phases | 2 | As `NASG-5Eq`, with pressure relaxation |
+| `ShuOsher-5Eq` | `ShuOsher-5Eq` | `FIVEEQS` | 2 | [Shu-Osher](verification.md#shu-osher-problem) shock-entropy wave interaction with AMR; variants compare the reconstruction schemes |
+| `ShockVortex-5Eq` | `ShockVortex-5Eq` | `FIVEEQS` | 2 | Vortex through a stationary shock; quadrature WENO5 with AMR |
+| `IsentropicVortex-5Eq` | `IsentropicVortex-5Eq` | `FIVEEQS` | 2 | Isentropic vortex over one period; WENO5; the [order-of-accuracy](verification.md#order-of-accuracy) case |
+| `COMPAS-STL-5Eq` | `COMPAS-STL-5Eq` | `FIVEEQS` | 2 | A solid read from an STL file falls into a pool; STL reader, gravity source term, viscosity, THINC, on CPUs |
+| `RichtmyerMeshkov-5Eq` | `RichtmyerMeshkov-5Eq` | `FIVEEQS` | 2 | Single-mode Richtmyer-Meshkov instability ([against experiment](verification.md#single-mode-richtmyer-meshkov-instability)); interface diagnostics with ghost cells, checkpoint and restart |
+| `RichtmyerMeshkov-Multimode-5Eq` | `RichtmyerMeshkov-Multimode-5Eq` | `FIVEEQS` | 2 | Multimode Richtmyer-Meshkov instability; parameter arrays sized at run time and copied to the GPU |
+| `RayleighTaylor-5Eq` | `RayleighTaylor`, `2D` (default) | `FIVEEQS` | 2 | Single-mode Rayleigh-Taylor instability ([against theory](verification.md#single-mode-rayleigh-taylor-instability)); gravity source term, viscosity, THINC |
+| `RayleighTaylor-3D-5Eq` | `RayleighTaylor`, `3D` | `FIVEEQS` | 3 | 3D Rayleigh-Taylor instability; 3D build, gravity source term, viscosity |
+| `Jet-Inflow-5Eq` | `Jet-Inflow-5Eq` | `FIVEEQS` | 2 | Gas jet injected into a box with an outflow face; Robin user boundary function on an inflow face |
+| `NonsphericalCollapse-6Eq` | `NonsphericalCollapse-6Eq` | `SIXEQS` | 3 | Gas bubble collapsing near a wall (Johnsen and Colonius 2009); pressure relaxation, THINC, user refinement tagging, no subcycling |

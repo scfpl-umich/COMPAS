@@ -1,6 +1,6 @@
 # First simulation
 
-This page builds and runs `exec/_Tests/Advection-5Eq`, looks at the output, and runs the same
+This page builds and runs `exec/_Tests/Advection`, looks at the output, and runs the same
 problem with THINC and with Phase-Field regularization. It assumes COMPAS and AMReX are cloned side
 by side as in [Installation](install.md).
 
@@ -13,7 +13,7 @@ grid has 64 by 64 cells, with two levels of refinement that follow the interface
 ## Build
 
 ```bash
-cd COMPAS/exec/_Tests/Advection-5Eq
+cd COMPAS/exec/_Tests/Advection
 make -j4
 ```
 
@@ -107,7 +107,8 @@ FiniteVolume.Scheme(nvals = 1)  :: [MUSCL-MC]
 
 `advection.csv` comes from the `UserOutputFunction` of this case, called every coarse step
 because `run.user_output_int = 1`. It holds the area of material 2, the extrema of $\alpha_1$,
-and the largest departures of pressure and velocity from their uniform initial values. Writing
+the largest departures of pressure and velocity from their uniform initial values, and `N_I`, the
+thickness of the interfaces in finest cells (`prob.interface_thickness = 1`). Writing
 such a function is described in [Setting up a case](../user-guide/cases.md#in-situ-diagnostics).
 
 `bash ../../clean.sh` removes the plotfiles and checkpoints of previous runs.
@@ -152,18 +153,17 @@ python3 ../../../scripts/postprocess.py snapshots plot/Advection5Eq --times 0 2 
 
 ## Try THINC and Phase-Field
 
-The same problem is provided with the two interface treatments, which build and run the same way:
+The same problem is provided with the two interface treatments, as two more inputs files for the
+same executable:
 
 ```bash
-cd ../Advection-THINC-5Eq     # THINC reconstruction
-make -j4 && mpirun -n 4 ./main2d.gnu.MPI.ex prob/inputs
-
-cd ../Advection-PF-5Eq        # Phase-Field regularization
-make -j4 && mpirun -n 4 ./main2d.gnu.MPI.ex prob/inputs
+mpirun -n 4 ./main2d.gnu.MPI.ex prob/inputs.Advection-THINC-5Eq     # THINC reconstruction
+mpirun -n 4 ./main2d.gnu.MPI.ex prob/inputs.Advection-PF-5Eq        # Phase-Field regularization
 ```
 
-They write to `plot/Advection5Eq-THINC/` and `plot/Advection5Eq-PF/`. The methods are switched on
-in `prob/inputs`:
+They write to `plot/Advection5Eq-THINC/` and `plot/Advection5Eq-PF/`, with the same columns in
+`advection.csv`, so `N_I` compares the interface thickness of the three methods. The methods are
+switched on in the inputs files:
 
 ```
 FiniteVolume.THINC       = 1           # Advection-THINC-5Eq
@@ -182,7 +182,7 @@ The three results are compared under
 ## Change methods on the command line
 
 Any parameter of the inputs file can be overridden at launch, so comparing methods needs no
-rebuild and no edit of `prob/inputs`. From `exec/_Tests/Advection-5Eq`:
+rebuild and no edit of `prob/inputs`. From `exec/_Tests/Advection`:
 
 ```bash
 ./main2d.gnu.MPI.ex prob/inputs FiniteVolume.Scheme=WENO5 Physics.RiemannSolver=HLL

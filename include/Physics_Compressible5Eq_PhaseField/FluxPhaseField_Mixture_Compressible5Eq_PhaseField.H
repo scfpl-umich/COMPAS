@@ -93,14 +93,17 @@ void FluxPhaseField_Mixture(amrex::Array<amrex::Real,4+AMREX_SPACEDIM>& Flux,
                pL,
                pR,
                J1);
-    amrex::Real J1_rho1_e1 = EOS_Parameter.A1*J1*p_DJ1 + EOS_Parameter.B1*J1 + EOS_Parameter.D1*J1_rho1;
+    // NASG: the A and B terms carry the flux of phi_1 = alpha_1 - b_1 alpha_1 rho_1, J1 - b1 J1_rho1
+    amrex::Real J1_Phi = (EOS_Parameter.C1 > 0.0) ? J1 - EOS_Parameter.C1*J1_rho1 : J1;
+    amrex::Real J1_rho1_e1 = EOS_Parameter.A1*J1_Phi*p_DJ1 + EOS_Parameter.B1*J1_Phi + EOS_Parameter.D1*J1_rho1;
     
     amrex::Real p_DJ2;
     f_Downwind(p_DJ2,
                pL,
                pR,
                J2);
-    amrex::Real J2_rho2_e2 = EOS_Parameter.A2*J2*p_DJ2 + EOS_Parameter.B2*J2 + EOS_Parameter.D2*J2_rho2;
+    amrex::Real J2_Phi = (EOS_Parameter.C2 > 0.0) ? J2 - EOS_Parameter.C2*J2_rho2 : J2;
+    amrex::Real J2_rho2_e2 = EOS_Parameter.A2*J2_Phi*p_DJ2 + EOS_Parameter.B2*J2_Phi + EOS_Parameter.D2*J2_rho2;
     
     //Flux_PhaseField
     Component2Vector(Flux,

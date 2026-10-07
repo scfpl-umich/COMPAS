@@ -1,0 +1,137 @@
+# =====================================================================
+# TWO-LAYER COUETTE FLOW, TWO-PHASE SIX-EQUATION MODEL
+# Phase 1 fills 0 < y < 0.5 and phase 2 fills 0.5 < y < 1, with the
+# viscosities mu_1 = 0.01 and mu_2 = 0.1 (ratio 10) and the densities
+# 1 and 10 (the same kinematic viscosity, so the flow settles at the
+# same rate in both layers), at the uniform pressure 1. The wall y = 0
+# is at rest and the wall y = 1 moves at U = 0.01 along x (Mach number
+# about 0.01), periodic in x. The exact steady flow has a uniform shear
+# stress and a piecewise linear velocity with a kink at the interface;
+# it is also the initial condition, and the run measures how far the
+# flow moves from it. The interface stays sharp: the flow is parallel
+# to it. This is the base test of the face viscosity across a material
+# interface with DIFFUSION = true; variants.txt reruns it with the
+# viscosity ratio 0.1 and with a diffuse interface. Nondimensional
+# units.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 1000000         # Maximum number of time steps to advance
+stop_time = 20.0            # Steady to about 1e-4 of the error by then
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# =====================================================================
+geometry.prob_lo     = 0.0  0.0         # Lower bounds (x,y)
+geometry.prob_hi     = 0.25 1.0         # Upper bounds (x,y): a strip of square cells
+geometry.is_periodic = 1    0           # Periodic in x
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# Type 1 calls the user boundary condition of ProblemICBC.H: no-slip
+# walls, at rest at y = 0 and moving at (U, 0) at y = 1.
+# =====================================================================
+run.lo_bc = 0 1
+run.hi_bc = 0 1
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1
+run.sum_var = 0
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# =====================================================================
+amr.n_cell      = 8 32       # Base grid resolution (coarsest level): 32 cells across the channel
+amr.max_level   = 0          # No refinement
+amr.ref_ratio   = 2 2 2 2 2 2
+amr.n_error_buf = 1
+
+amr.blocking_factor_x = 8
+amr.blocking_factor_y = 8
+amr.max_grid_size     = 32
+amr.regrid_int        = 2
+amr.Interpolater      = "lincc_interp"
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.4
+run.vnn                     = 0.2          # Diffusive limit, dt = vnn dx^2 / (largest diffusivity)
+run.do_subcycle             = 1
+run.check_cfl               = 0
+run.timestep_change_limiter = 0
+run.TimeIntegrator          = "TVD-RK3"
+run.do_reflux               = 1
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/Couette2Layer-6Eq
+amr.plot_int         = 1000000
+amr.t_write_interval = 10.0                # A plotfile every 10
+run.output_vars      = a1rho1 a2rho2 rho_u rho_v a1rho1E1 a2rho2E2 a1 rho u v P a1P1 a2P2
+amr.chk_file         = ./checkpoints/chk
+amr.chk_int          = -1
+run.user_output_int  = 20                  # Profile error and wall stresses every 20 coarse steps
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.pressure_relaxation             = 1
+Physics.pressure_temperature_relaxation = 0
+Physics.RiemannSolver                   = "HLLC"
+
+FiniteVolume.Scheme = "MUSCL-MC"
+FiniteVolume.THINC  = 0
+
+PhaseField.phase_field    = 0
+PhaseField.Eta_Multiplier = 0.0            # Width of the initial profile of alpha, in cells (0: a step)
+
+
+# =====================================================================
+# PROBLEM
+# =====================================================================
+prob.U     = 0.01                          # Speed of the wall y = 1
+prob.h     = 0.5                           # Interface height
+prob.P0    = 1.0
+prob.rho_1 = 1.0
+prob.rho_2 = 10.0
+prob.eps   = 1.0e-8                        # Trace of the other phase
+
+
+# =====================================================================
+# MATERIALS
+# Two ideal gases (stiffened gas with pinf = 0)
+# =====================================================================
+prob.EOS.EOS     = 1
+prob.EOS.gamma_1 = 1.4
+prob.EOS.gamma_2 = 1.4
+prob.EOS.pinf_1  = 0.0
+prob.EOS.pinf_2  = 0.0
+prob.EOS.cv_1    = 2.5
+prob.EOS.cv_2    = 2.5
+
+prob.EOS.mu_1    = 0.01                    # Shear viscosities, mu_2/mu_1 = 10
+prob.EOS.mu_2    = 0.1
+prob.EOS.muB_1   = 0.0                     # Bulk viscosities
+prob.EOS.muB_2   = 0.0
+prob.EOS.kappa_1 = 0.0                     # No conduction
+prob.EOS.kappa_2 = 0.0
+
+# =====================================================================
+# PROBLEM OF THE DIFFUSION CASE (prob/Parm.H)
+# =====================================================================
+prob.problem = Couette2Layer

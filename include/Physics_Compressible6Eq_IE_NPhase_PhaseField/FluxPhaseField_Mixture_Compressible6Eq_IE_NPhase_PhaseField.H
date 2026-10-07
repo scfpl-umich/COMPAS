@@ -95,8 +95,10 @@ void FluxPhaseField_Mixture(amrex::Array<amrex::Real, NSTATE>& Flux,
                    pL,
                    pR,
                    Ji);
-        J_rho_e[i_Phase] = EOS_Parameter.A[i_Phase]*Ji*p_DJi + EOS_Parameter.B[i_Phase]*Ji + EOS_Parameter.D[i_Phase]*J_rho[i_Phase];
-        J_rho_e_mx += EOS_Parameter.A[i_Phase]*Ji*p_DJi + EOS_Parameter.B[i_Phase]*Ji + EOS_Parameter.D[i_Phase]*J_rho[i_Phase];
+        // NASG: the A and B terms carry the flux of phi_k = alpha_k - b_k alpha_k rho_k, J_k - b_k J_rho_k
+        amrex::Real Ji_Phi = (EOS_Parameter.C[i_Phase] > 0.0) ? Ji - EOS_Parameter.C[i_Phase]*J_rho[i_Phase] : Ji;
+        J_rho_e[i_Phase] = EOS_Parameter.A[i_Phase]*Ji_Phi*p_DJi + EOS_Parameter.B[i_Phase]*Ji_Phi + EOS_Parameter.D[i_Phase]*J_rho[i_Phase];
+        J_rho_e_mx += EOS_Parameter.A[i_Phase]*Ji_Phi*p_DJi + EOS_Parameter.B[i_Phase]*Ji_Phi + EOS_Parameter.D[i_Phase]*J_rho[i_Phase];
     }
     
     //Flux_PhaseField

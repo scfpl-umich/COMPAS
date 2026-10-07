@@ -20,6 +20,7 @@ CEXE_headers += Conservative2Conductivity_Compressible6Eq_IE_NPhase.H
 CEXE_headers += FDM_FluxDiffusion_D_Compressible6Eq_IE_NPhase.H
 CEXE_headers += FDM_Conservative2FluxDiffusion_D_Compressible6Eq_IE_NPhase.H
 CEXE_headers += FDM_Conservative2FluxDiffusion_K_Compressible6Eq_IE_NPhase.H
+CEXE_headers += FDM_Conservative2ViscousDissipation_K_Compressible6Eq_IE_NPhase.H
 
 CEXE_headers += FVM_Reconstruction2Face_LimiterConsistent_Compressible6Eq_IE_NPhase.H
 CEXE_headers += FVM_Reconstruction2Face_Conservative_LimiterConsistent_Compressible6Eq_IE_NPhase.H

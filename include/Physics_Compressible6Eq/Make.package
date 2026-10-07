@@ -30,13 +30,14 @@ CEXE_headers += RiemannSolver_Compressible6Eq.H
 
 CEXE_headers += Conservative2Velocity_Compressible6Eq.H
 CEXE_headers += Conservative2Temperature_Compressible6Eq.H
+CEXE_headers += Conservative2PhaseTemperature_Compressible6Eq.H
 CEXE_headers += Conservative2Pressure_Compressible6Eq.H
 CEXE_headers += Conservative2EnergyBound_Compressible6Eq.H
 
 CEXE_headers += ComputeDerivedVar_Compressible6Eq.H
 
+CEXE_headers += FluxDiffusion_Compressible6Eq.H
+
 CEXE_headers += Relaxation_Pressure_Instantaneous_Compressible6Eq.H
 CEXE_headers += Relaxation_PressureTemperature_Instantaneous_Compressible6Eq.H
 CEXE_headers += Relaxation_Instantaneous_Compressible6Eq.H
-
-CEXE_headers += RefluxSourceTerms_Compressible6Eq.H

@@ -21,7 +21,7 @@ python3 scripts/test_cases.py
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--only PATTERN` | all cases | Run only the cases whose directory name contains `PATTERN` |
+| `--only PATTERN` | all cases | Run only the cases whose directory name contains `PATTERN`, and the base runs whose label contains it (only their builds are made) |
 | `--no-variants` | off | Run only the base inputs of each case |
 | `--ranks=N` | 1 | MPI ranks per run. With 1, the executable runs without `mpirun` |
 | `--timeout=S` | 10 | Time limit of each run, in seconds |
@@ -37,7 +37,7 @@ runner with an error.
 For example,
 
 ```bash
-bash scripts/test_cases.sh --only Advection-6Eq     # cases whose name contains the pattern
+bash scripts/test_cases.sh --only Advection-6Eq     # base runs whose label contains the pattern
 bash scripts/test_cases.sh --no-variants            # base inputs only
 bash scripts/test_cases.sh --ranks=4 --timeout=30
 bash scripts/test_cases.sh --quiet -- -j4           # arguments after -- go to make
@@ -54,10 +54,20 @@ that is not in the list runs after the listed ones, with a warning.
 
 For each case the runner
 
-1. runs `make realclean` and builds the case with `make -jN ARGS`, N being the number of CPUs unless ARGS sets `-j`, using its own `GNUmakefile`,
-2. runs the executable with `prob/inputs`,
-3. runs it again for each line of the case's `variants.txt`, if there is one,
-4. removes the output and the build.
+1. runs `make realclean`, then builds each build of the case once, before its first base run,
+   with `make -jN BUILDARGS ARGS`, N being the number of CPUs unless ARGS sets `-j`; BUILDARGS are
+   the make arguments of the base run (`BUILD=6Eq`, see
+   [Several builds and base runs in one case](#several-builds-and-base-runs-in-one-case)), none for
+   a case with one build,
+2. runs the executable of each base run with its inputs file (`prob/inputs` for a case with one
+   build),
+3. runs it again for each variant line of that base run in `variants.txt`,
+4. removes the output and every build.
+
+Before building, the runner asks make for the executable of each build
+(`make BUILDARGS print-executable`) and refuses two builds that would write the same executable. In
+a case with several builds it deletes `tmp_build_dir` after each build, so the object files of only
+one build are on disk at a time; the executables stay until the end of the case.
 
 Before each run, except the `+` variants described below, it calls `exec/clean.sh` in the case
 directory, which deletes and recreates `plot/` and `checkpoints/`.
@@ -71,7 +81,7 @@ Running the suite deletes the plotfiles and checkpoints in the case directories 
 
 `variants.txt` lets one executable cover many run-time options. Each line is a variant name
 followed by overrides appended to the command line of the base run, and text after `#` is a
-comment. From `exec/_Tests/Advection-5Eq/variants.txt`:
+comment. From the `[Advection-5Eq]` section of `exec/_Tests/Advection/variants.txt`:
 
 ```
 scheme-weno5            max_step=10 FiniteVolume.Scheme=WENO5
@@ -88,11 +98,72 @@ restart-write           max_step=5 amr.chk_int=5
 +restart-read           max_step=10 amr.restart=./checkpoints/chk00005
 ```
 
-`Advection-5Eq`, `Advection-5Eq-N`, `Advection-6Eq` and `Advection-6Eq-N` run every
-reconstruction scheme, Riemann solver and equation of state, and each family of Phase-Field
-mechanisms, on their model. `Advection-5Eq` also runs all eleven mechanisms and the time
-integrators, and the four `Sod-*` cases run the boundary conditions and the two-material water-air
-shock tube on each model. At release the 22 cases and their variants make 138 runs.
+## Several builds and base runs in one case
+
+A case directory can hold several builds, one per model, and several base runs. `exec/_Tests/Sod`,
+for example, builds the Sod shock tube with each of the four models. Its `GNUmakefile` maps `BUILD`
+to the DEFINES of each build, and its `prob/` serves every build, with `#if (PHYSICS == ...)`
+where the models differ:
+
+| Command | Builds | Executable |
+|---|---|---|
+| `make` | the default, the first of `BUILDS` in the `GNUmakefile` (here `BUILD=5Eq`) | `main3d.gnu.MPI.ex` |
+| `make BUILD=6Eq` | another build | `main3d.gnu.MPI.6Eq.ex` |
+
+The default build keeps the plain executable name and its first base run the plain `prob/inputs`, so
+`make && ./main2d.gnu.MPI.ex prob/inputs` (`main3d` in a 3D case) works in every case directory.
+The other builds add their name to the executable and the object directory
+(`USERSuffix := .$(BUILD)`), so the builds can sit side by side.
+
+In `variants.txt` a line `[LABEL] ARGS` starts a base run named `LABEL`: the words of ARGS are
+passed to `make` (`BUILD=...`), except `inputs=FILE`, its inputs file. The variant lines below it
+belong to it, and base runs with the same `BUILD` share one build. The labels are the names the
+runs had as separate cases. From `exec/_Tests/Diffusion/variants.txt`:
+
+```
+[Couette2Layer-6Eq]          BUILD=6Eq     inputs=prob/inputs.Couette2Layer-6Eq
+mid-cell                max_step=20 prob.h=0.515625
+no-relaxation           max_step=20 Physics.pressure_relaxation=0
+
+[ViscousShockTube-6Eq]       BUILD=6Eq     inputs=prob/inputs.ViscousShockTube-6Eq
+relax-pT                max_step=10 Physics.pressure_relaxation=0 Physics.pressure_temperature_relaxation=1
+```
+
+The two base runs share the `6Eq` build; `prob.problem` in each inputs file chooses the problem
+(the list is in `exec/_Tests/Diffusion/prob/Parm.H`). A `variants.txt` without such lines
+describes one build, run with `prob/inputs` and named after its directory, as in
+`RichtmyerMeshkov-5Eq`. Labels must be unique in the suite; the logs and the summary use them.
+
+To build and run one base run by hand, take its `BUILD` and inputs file from `variants.txt`:
+
+```bash
+cd exec/_Tests/Diffusion
+grep '^\[' variants.txt                       # the base runs: label, BUILD and inputs file
+make -j4 BUILD=6Eq                            # main2d.gnu.MPI.6Eq.ex
+mpirun -n 4 ./main2d.gnu.MPI.6Eq.ex prob/inputs.Couette2Layer-6Eq
+make BUILD=6Eq cleanconfig                    # removes this build only
+make realclean                                # removes every build of the directory
+```
+
+`make BUILD=6Eq cleanconfig` deletes the executable and the object files of that build and leaves
+the others; `make realclean` (and `make clean`) deletes `tmp_build_dir` and every executable of the
+directory. The runs of one directory share `plot/` and `checkpoints/`, and `exec/clean.sh` empties
+both, so run one base run at a time per directory. The configuration log of a run copies the
+inputs file the run reads (`prob/inputs` or `prob/inputs.<label>`).
+
+## What the cases cover
+
+The 13 case directories hold 36 base runs in 27 builds; with their variants they make 247 runs.
+
+| Directory | Builds | Base runs (labels) | What it tests |
+|---|---|---|---|
+| `Advection` | 5Eq, 5Eq-N, 6Eq, 6Eq-N | `Advection-5Eq`, `Advection-5Eq-N`, `Advection-6Eq`, `Advection-6Eq-N`, `Advection-THINC-5Eq`, `Advection-PF-5Eq` | Four shapes advected at uniform pressure and velocity. Each model runs every reconstruction scheme, Riemann solver and equation of state, and each family of Phase-Field mechanisms; `Advection-5Eq` also runs all eleven mechanisms and the time integrators, and the `eos-nasg-b0` variants check that the NASG EOS reproduces the stiffened gas with $b = q = 0$. `Advection-THINC-5Eq` and `Advection-PF-5Eq` are inputs files of the 5Eq build with THINC and with Phase-Field on, to try each out of the box |
+| `Diffusion` | 5Eq, 5Eq-N, 6Eq, 6Eq-N, 6Eq-N3 | `Couette2Layer-*`, `HeatConduction2Mat-*`, `ViscousShockTube-*` (5Eq, 6Eq, 6Eq-N), `Advection-Viscous-6Eq`, `-6Eq-N`, `-5Eq-N` | The viscous and conductive fluxes (`-DDIFFUSION=true`): a two-layer Couette flow with a moving wall and conduction between two materials, across a material interface; the viscous shock tube; viscous advection of a drop (with an absent third phase in the N-phase model, build 6Eq-N3) and of five materials |
+| `Sod` | 5Eq, 5Eq-N, 6Eq, 6Eq-N | `Sod-5Eq`, `Sod-5Eq-N`, `Sod-6Eq`, `Sod-6Eq-N` | The 3D Sod shock tube with AMR along x, y and z, the boundary conditions, and the two-material water-air shock tube |
+| `NASG` | 5Eq, 5Eq-N, 6Eq, 6Eq-N | `NASG-5Eq`, `NASG-5Eq-N`, `NASG-6Eq`, `NASG-6Eq-N` | The Noble-Abel stiffened gas: the air-water shock tube, a water shock tube and a water drop |
+| `ShuOsher-5Eq`, `ShockVortex-5Eq`, `IsentropicVortex-5Eq` | one each | the directory name | The reconstruction schemes on the Shu-Osher tube, a vortex through a stationary shock with AMR, and the convergence case with WENO5 |
+| `COMPAS-STL-5Eq`, `RichtmyerMeshkov-5Eq`, `RichtmyerMeshkov-Multimode-5Eq`, `Jet-Inflow-5Eq`, `NonsphericalCollapse-6Eq` | one each | the directory name | One user hook or feature each: the STL reader, the user output with checkpoint and restart, run-time static GPU arrays, a user boundary condition, user refinement tagging in 3D |
+| `RayleighTaylor` | 2D, 3D (`BUILD` sets `DIM`) | `RayleighTaylor-5Eq`, `RayleighTaylor-3D-5Eq` | A user source term, in 2D and 3D |
 
 ## Pass and fail
 
@@ -106,16 +177,19 @@ Each run gets one status, checked in this order:
 | `UNUSED_PARAM` | AMReX listed an override among its unused ParmParse variables, so the variant tested nothing | fail |
 | `OK` | The run finished | pass |
 
-A case whose build fails is recorded as `FAILED` and its runs are skipped, and a build that
-produces no `*.ex` file is recorded as `NOEXE`. Both count as failures.
+A base run whose build fails is recorded as `FAILED` and its runs are skipped, and a build that
+produces no executable, or the executable of another build of the case, is recorded as `NOEXE`.
+Both count as failures.
 
 AMReX lists the unused variables when the run ends, so the `UNUSED_PARAM` check needs a run that
 finishes before the time limit. This is why the variants set a small `max_step`.
 
-The runner exits with 0 if every run passed, 1 if any failed, and 2 if `--only` matched no case
-or an option is not recognized. The build logs are `scripts/logs/<case>.log`, the run logs `scripts/logs/<case>_run.log` and
-`scripts/logs/<case>__<variant>_run.log`, and the summary is `scripts/test_summary.csv`, with one
-row per run:
+The runner exits with 0 if every run passed, 1 if any failed, and 2, before building anything, if
+`--only` matched no case, an option is not recognized, a label appears twice in the suite, or a
+`variants.txt` has a variant line before its first `[LABEL]` line. The build logs are `scripts/logs/<label>.log`, named after the
+first base run of the build, the run logs `scripts/logs/<label>_run.log` and
+`scripts/logs/<label>__<variant>_run.log`, and the summary is `scripts/test_summary.csv`, with one
+row per run, the first column being `<label>` or `<label>:<variant>`:
 
 ```
 case,build_status,run_status,build_seconds,run_seconds,total_seconds
@@ -125,7 +199,12 @@ case,build_status,run_status,build_seconds,run_seconds,total_seconds
 
 A new case in `exec/_Tests/` is picked up automatically. Add its name to `test_list.txt` to fix
 its place in the order and remove the warning. A new run-time option is tested by a line in the
-`variants.txt` of a case for each model it applies to. What a pull request needs is on the
+`variants.txt` of a case for each model it applies to. A new model of an existing problem is a new
+`BUILD` in the case's `GNUmakefile`, `#if (PHYSICS == ...)` branches in `prob/` where the model
+differs, an inputs file and a `[LABEL] BUILD=... inputs=...` section. A new problem of the
+`Diffusion` case is a header `prob/<Problem>.H` with its functions in a namespace of its name, its
+parameters and a value of `DiffusionProblem` in `Parm.H`, a line in each dispatch of
+`ProblemICBC.H`, and a section per model. What a pull request needs is on the
 [Contributing](../about/contributing.md) page.
 
 ## Convergence script

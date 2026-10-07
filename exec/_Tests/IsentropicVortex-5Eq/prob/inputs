@@ -2,8 +2,8 @@
 # ISENTROPIC VORTEX
 # The isentropic vortex of Shu (1998) is carried by the uniform flow
 # (1,1) across the periodic box [-5,5]^2 for one period. The case tests
-# the high-order WENO5 scheme with quadrature (FiniteVolume.Quad = 1) on
-# a smooth solution, and is the convergence case of
+# WENO5 on a smooth solution (its variant quad, in variants.txt, WENO5
+# via quadrature, FiniteVolume.Quad = 1), and is the convergence case of
 # scripts/convergence.py: with CONVERGENCE defined in prob/ProblemICBC.H,
 # COMPAS writes the error norms against the exact solution at the end of
 # the run. Single fluid, nondimensional units.
@@ -85,7 +85,7 @@ run.refine.rho.grad      = 0.01 0.01 0.01 0.01 0.01 0.01 0.01
 # =====================================================================
 # OUTPUT
 # =====================================================================
-amr.case_name        = ./plot/IsentropicVortex-WENO5-Quad
+amr.case_name        = ./plot/IsentropicVortex
 amr.plot_int         = 1000000
 amr.t_write_interval = 1.0                 # A plotfile every time unit
 run.output_vars      = a1rho1 rho u v P a1
@@ -100,7 +100,7 @@ Physics.source_term   = 0                  # No K div(u) term (single fluid)
 Physics.RiemannSolver = "HLLC"
 
 FiniteVolume.Scheme = "WENO5"
-FiniteVolume.Quad   = 1                    # High-order WENO5 with quadrature over the cell faces (2D five-equation model only)
+FiniteVolume.Quad   = 0                    # 1 for the high-order WENO5 with quadrature over the cell faces (2D five-equation model only)
 
 FiniteVolume.THINC  = 0                    # No interfaces
 FiniteVolume.THINC.Beta            = 2.3

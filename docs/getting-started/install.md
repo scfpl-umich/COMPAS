@@ -53,7 +53,7 @@ build is printed at startup and recorded in the configuration log of every run
 Build from a case directory with GNU Make:
 
 ```bash
-cd COMPAS/exec/_Tests/Advection-5Eq
+cd COMPAS/exec/_Tests/Advection
 make -j4
 ```
 
@@ -94,7 +94,10 @@ A few examples:
 | 3D, MPI and HIP (`USE_HIP=TRUE`) | `main3d.hip.MPI.HIP.ex` |
 
 Builds with different options therefore sit side by side in the case directory. A serial build
-runs without `mpirun`.
+runs without `mpirun`. Some cases of `exec/_Tests/` hold one build per model, chosen with `BUILD`
+on the `make` line: `make BUILD=6Eq` in `exec/_Tests/Advection` writes `main2d.gnu.MPI.6Eq.ex`
+next to the default `main2d.gnu.MPI.ex`
+([Testing](../user-guide/testing.md#several-builds-and-base-runs-in-one-case)).
 
 ## Python environment
 

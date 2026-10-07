@@ -72,19 +72,9 @@ void
 Compressible6Eq_IE_NPhase_PhaseField::SaveSourceTermsBeforeReflux (amrex::MultiFab & source_fab,
                                                          amrex::MultiFab const & dof)
 {
-// #if (PHYSICS == SIXEQS_IE_NPHASE)
-//     // MultiFab::Copy(source_fab, dof, 0, 0, NSTATE, 0);
-//     Parm const* lparm = d_parm;
-
-//     SaveSourceTermsBefore_Reflux (source_fab,
-//                                  dof, 
-//                                  *lparm);
-// #endif
-
 #if (PHYSICS == SIXEQS_IE_NPHASE)
     MultiFab::Copy(source_fab, dof, 0, 0, NSTATE, 0);
 #endif
-
 }
 
 
@@ -95,20 +85,6 @@ Compressible6Eq_IE_NPhase_PhaseField::RefluxSourceTerms (amrex::MultiFab & new_d
                                                int lev,
                                                amrex::Vector<std::unique_ptr<amrex::FluxRegister>> & fr)
 {
-
-// #if (PHYSICS == SIXEQS_IE_NPHASE)
-// Parm const* lparm = d_parm;
-
-// RefluxSource_Terms ( new_dof,
-//                     source_fab,
-//                     lev,
-//                     fr,
-//                     geom[lev],
-//                     grids[lev],
-//                     dmap[lev],
-//                     *lparm);
-// #endif
-
 #if (PHYSICS == SIXEQS_IE_NPHASE)
     int ncomp = NC_TERMS; int ngrow = 0;
 
@@ -181,6 +157,14 @@ void
 Compressible6Eq_IE_NPhase_PhaseField::RefluxLev (int lev)
 {
 #if (PHYSICS==SIXEQS_IE_NPHASE)
+    // The stages end with the pressure relaxation (PostTimeStage), but the reflux corrects the
+    // coarse cells next to the finer level after that, so those cells are relaxed again at the end
+    const bool relax = h_parm->Physics_Parm.pressure_relaxation;
+    MultiFab state_unrefluxed;
+    if (relax){
+        state_unrefluxed.define(grids[lev],dmap[lev],NSTATE,0);
+        MultiFab::Copy(state_unrefluxed, dof_new[lev], 0, 0, NSTATE, 0);
+    }
 #if (NONCONSERVATIVE == true)
     MultiFab source_fab(grids[lev],dmap[lev],NSTATE,0);
     SaveSourceTermsBeforeReflux(source_fab, dof_new[lev]);
@@ -191,6 +175,9 @@ Compressible6Eq_IE_NPhase_PhaseField::RefluxLev (int lev)
 #if (NONCONSERVATIVE == true)
     RefluxSourceTerms(dof_new[lev],source_fab,lev,flux_reg_nc);
 #endif
+    if (relax){
+        RelaxRefluxedCells(dof_new[lev], state_unrefluxed);
+    }
 #endif
 }
 
@@ -286,6 +273,14 @@ void
 Compressible6Eq_IE_NPhase_PhaseField::PhaseField_RefluxLev (int lev)
 {
 #if (PHYSICS==SIXEQS_IE_NPHASE)
+    // As in RefluxLev: the Phase-Field stages end with the pressure relaxation, so the refluxed
+    // cells are relaxed again at the end
+    const bool relax = h_parm->Physics_Parm.pressure_relaxation;
+    MultiFab state_unrefluxed;
+    if (relax){
+        state_unrefluxed.define(grids[lev],dmap[lev],NSTATE,0);
+        MultiFab::Copy(state_unrefluxed, dof_new[lev], 0, 0, NSTATE, 0);
+    }
 #if (NONCONSERVATIVE == true)
     MultiFab source_fab(grids[lev],dmap[lev],NSTATE,0);
     PhaseField_SaveSourceTermsBeforeReflux(source_fab, dof_new[lev]);
@@ -296,6 +291,48 @@ Compressible6Eq_IE_NPhase_PhaseField::PhaseField_RefluxLev (int lev)
 #if (NONCONSERVATIVE == true)
     PhaseField_RefluxSourceTerms(dof_new[lev],source_fab,lev,flux_reg_nc);
 #endif
+    if (relax){
+        RelaxRefluxedCells(dof_new[lev], state_unrefluxed);
+    }
+#endif
+}
+
+
+void
+Compressible6Eq_IE_NPhase_PhaseField::RelaxRefluxedCells (MultiFab & mf,
+                                                          MultiFab const & state_unrefluxed)
+{
+#if (PHYSICS==SIXEQS_IE_NPHASE)
+    // Relax a copy of the level, and take the relaxed state only in the cells that the reflux
+    // changed (the coarse cells next to the finer level), so that every other cell keeps its bits.
+    // Relaxation_Pressure copies *parm by value on the host into its kernel, so it takes h_parm
+    MultiFab relaxed(mf.boxArray(), mf.DistributionMap(), NSTATE, 0);
+    MultiFab::Copy(relaxed, mf, 0, 0, NSTATE, 0);
+    Relaxation_Pressure(relaxed, h_parm);
+
+#ifdef AMREX_USE_OMP
+#pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+    for (MFIter mfi(mf,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const Box& bx = mfi.tilebox();
+        Array4<Real      > const& state   = mf.array(mfi);
+        Array4<Real const> const& before  = state_unrefluxed.const_array(mfi);
+        Array4<Real const> const& relaxedArray = relaxed.const_array(mfi);
+        amrex::ParallelFor(bx,
+        [=] AMREX_GPU_DEVICE (int i, int j, int k)
+        {
+            bool refluxed = false;
+            for (int iState = 0; iState < NSTATE; ++iState){
+                refluxed = refluxed || (state(i,j,k,iState) != before(i,j,k,iState));
+            }
+            if (refluxed){
+                for (int iState = 0; iState < NSTATE; ++iState){
+                    state(i,j,k,iState) = relaxedArray(i,j,k,iState);
+                }
+            }
+        });
+    }
 #endif
 }
 

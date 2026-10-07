@@ -67,6 +67,10 @@
 #include<FDM_Laplace_D.H>
 #include<FDM_Laplace_K.H>
 
+#include<FDM_FaceVelocityGradient_D.H>
+#include<FDM_CellVelocityGradient_D.H>
+#include<PhaseDiffusion_D.H>
+
 #include<THINC_Select_K.H>
 
 #endif

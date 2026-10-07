@@ -206,8 +206,8 @@ public:
                      FluxRegister* fr_as_crse_nc, 
                      FluxRegister* fr_as_fine_nc) {};
 
-    // Advance at all levels for a single time step
-    void AdvanceAllLevels (amrex::Real time, amrex::Real dt_lev, int iteration);
+    // Advance at all levels for a single time step (the step without subcycling)
+    virtual void AdvanceAllLevels (amrex::Real time, amrex::Real dt_lev, int iteration);
 
     // compute dt from CFL considerations
     virtual
@@ -342,6 +342,18 @@ public:
                          int scomp,
                          int dcomp,
                          int ncomp);
+
+    // fill mf of level lev for a Runge-Kutta stage that every level takes at the same time (no
+    // subcycling): the valid region and same-level ghost cells from U_stage[lev], the physical
+    // boundary conditions at stage_time, and the coarse-fine ghost cells interpolated in space from
+    // the coarser level's stage state U_stage[lev-1] (no interpolation in time)
+    void FillPatchStageLevels (MultiFab& mf,
+                               int lev,
+                               Real const& stage_time,
+                               Vector<MultiFab>& U_stage,
+                               int scomp,
+                               int dcomp,
+                               int ncomp);
 
 
     // fill an entire multifab by interpolating from the coarser level

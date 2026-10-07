@@ -24,47 +24,18 @@ void FDM_Conservative2FluxDiffusion_K(int i, int j, int k,
                                       Parm const& EOS_Parameter,
                                       int ID_Dimension)
 {
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_c;
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_xm;
-#if (AMREX_SPACEDIM > 1)
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_xp;
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_ym;
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_yp;
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_xm_ym;
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_xm_yp;
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_xp_ym;
-#endif
-#if (AMREX_SPACEDIM > 2)
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_zm;
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_zp;
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_xm_zm;
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_xm_zp;
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_xp_zm;
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_ym_zm;
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_ym_zp;
-    amrex::Array<amrex::Real,4+AMREX_SPACEDIM> Conservative_yp_zm;
-#endif
-    for (int i_State=0; i_State<4+AMREX_SPACEDIM; i_State++){
-        Conservative_c[i_State] = Conservative(i,j,k,i_State);
-        Conservative_xm[i_State] = Conservative(i-1,j,k,i_State);
-#if (AMREX_SPACEDIM > 1)
-        Conservative_xp[i_State] = Conservative(i+1,j,k,i_State);
-        Conservative_ym[i_State] = Conservative(i,j-1,k,i_State);
-        Conservative_yp[i_State] = Conservative(i,j+1,k,i_State);
-        Conservative_xm_ym[i_State] = Conservative(i-1,j-1,k,i_State);
-        Conservative_xm_yp[i_State] = Conservative(i-1,j+1,k,i_State);
-        Conservative_xp_ym[i_State] = Conservative(i+1,j-1,k,i_State);
-#endif
-#if (AMREX_SPACEDIM > 2)
-        Conservative_zm[i_State] = Conservative(i,j,k-1,i_State);
-        Conservative_zp[i_State] = Conservative(i,j,k+1,i_State);
-        Conservative_xm_zm[i_State] = Conservative(i-1,j,k-1,i_State);
-        Conservative_xm_zp[i_State] = Conservative(i-1,j,k+1,i_State);
-        Conservative_xp_zm[i_State] = Conservative(i+1,j,k-1,i_State);
-        Conservative_ym_zm[i_State] = Conservative(i,j-1,k-1,i_State);
-        Conservative_ym_zp[i_State] = Conservative(i,j-1,k+1,i_State);
-        Conservative_yp_zm[i_State] = Conservative(i,j+1,k-1,i_State);
-#endif
+    // Face stencil: 1 ghost cell with the edge neighbors. FaceStencil::OffsetOnFace maps the points
+    // one cell above the face cell along the face normal (xp, xp_ym, xp_zm on an x face), which this
+    // face does not use, to the face cell, so that no read leaves the single ghost layer of
+    // FiniteVolume.Scheme = GODUNOV (see FDM_FaceVelocityGradient_D.H). The values used are unchanged.
+    using namespace FaceStencil;
+    amrex::Array<amrex::Array<amrex::Real,4+AMREX_SPACEDIM>,FaceStencil::N> Conservative_s;
+    for (int s = 0; s < FaceStencil::N; ++s){
+        int di, dj, dk;
+        FaceStencil::OffsetOnFace(s, ID_Dimension, di, dj, dk);
+        for (int i_State = 0; i_State < 4+AMREX_SPACEDIM; i_State++){
+            Conservative_s[s][i_State] = Conservative(i+di,j+dj,k+dk,i_State);
+        }
     }
     amrex::Real mu;
     amrex::Real mub;
@@ -90,16 +61,16 @@ void FDM_Conservative2FluxDiffusion_K(int i, int j, int k,
     
     FDM_Conservative2FluxDiffusion_D(Flux,
                                      dmax,
-                                     Conservative_c,
-                                     Conservative_xm,
+                                     Conservative_s[c],
+                                     Conservative_s[xm],
 #if (AMREX_SPACEDIM > 1)
-                                     Conservative_xp, Conservative_ym, Conservative_yp,
-                                     Conservative_xm_ym, Conservative_xm_yp, Conservative_xp_ym,
+                                     Conservative_s[xp], Conservative_s[ym], Conservative_s[yp],
+                                     Conservative_s[xm_ym], Conservative_s[xm_yp], Conservative_s[xp_ym],
 #endif
 #if (AMREX_SPACEDIM > 2)
-                                     Conservative_zm, Conservative_zp,
-                                     Conservative_xm_zm, Conservative_xm_zp, Conservative_xp_zm,
-                                     Conservative_ym_zm, Conservative_ym_zp, Conservative_yp_zm,
+                                     Conservative_s[zm], Conservative_s[zp],
+                                     Conservative_s[xm_zm], Conservative_s[xm_zp], Conservative_s[xp_zm],
+                                     Conservative_s[ym_zm], Conservative_s[ym_zp], Conservative_s[yp_zm],
 #endif
                                      mu, mub, Kappa,
                         AMREX_D_DECL(dx, dy, dz),

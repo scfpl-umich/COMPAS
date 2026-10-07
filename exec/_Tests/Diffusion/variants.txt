@@ -1,0 +1,110 @@
+# Runs of the Diffusion case, by scripts/test_cases.sh and test_cases.py. A line "[LABEL] ARGS"
+# starts the base run LABEL, built with "make ARGS" and run with "<exe> FILE" for inputs=FILE in
+# ARGS; the variant lines below it (a name and ParmParse overrides appended to that command
+# line) use the same executable. The labels are the names the runs had as separate cases.
+# Sections with the same BUILD share one build; prob.problem in each inputs file picks the
+# problem.
+
+# ===== Two-layer Couette flow (prob.problem = Couette2Layer) =====
+
+[Couette2Layer-5Eq]          BUILD=5Eq     inputs=prob/inputs
+# The base inputs use the five-equation model with DIFFUSION = true (the reference of the
+# six-equation runs), a sharp interface, the viscosity ratio mu_2/mu_1 = 10 and MUSCL-MC, to the
+# steady state.
+# --- Viscosity ratio 0.1 (phase 2 the less viscous), and a diffuse interface ---
+ratio-01                max_step=20 prob.EOS.mu_1=0.1 prob.EOS.mu_2=0.01 prob.rho_1=10.0 prob.rho_2=1.0
+diffuse                 max_step=20 PhaseField.Eta_Multiplier=1.0
+# --- Scheme (three ghost cells through the user wall condition) ---
+scheme-weno5            max_step=20 FiniteVolume.Scheme=WENO5
+
+[Couette2Layer-6Eq]          BUILD=6Eq     inputs=prob/inputs.Couette2Layer-6Eq
+# The base inputs use the two-phase six-equation model with DIFFUSION = true, a sharp interface,
+# the viscosity ratio mu_2/mu_1 = 10, MUSCL-MC and pressure relaxation, to the steady state.
+# --- Viscosity ratio 0.1 (phase 2 the less viscous), a diffuse interface, and a sharp interface
+# in the middle of a cell (one cell with alpha = 1/2, which keeps the first-order error of the
+# mixture viscosity: the harmonic face mean is exact only for an interface on a cell face) ---
+ratio-01                max_step=20 prob.EOS.mu_1=0.1 prob.EOS.mu_2=0.01 prob.rho_1=10.0 prob.rho_2=1.0
+diffuse                 max_step=20 PhaseField.Eta_Multiplier=1.0
+mid-cell                max_step=20 prob.h=0.515625
+# --- Scheme (three ghost cells through the user wall condition) and relaxation ---
+scheme-weno5            max_step=20 FiniteVolume.Scheme=WENO5
+no-relaxation           max_step=20 Physics.pressure_relaxation=0
+
+[Couette2Layer-6Eq-N]        BUILD=6Eq-N   inputs=prob/inputs.Couette2Layer-6Eq-N
+# The base inputs use the N-phase six-equation model (NPHASE = 2) with DIFFUSION = true, a sharp
+# interface, the viscosity ratio mu_2/mu_1 = 10, MUSCL-MC and pressure relaxation, to the steady
+# state.
+# --- Viscosity ratio 0.1 (phase 2 the less viscous), and a diffuse interface ---
+ratio-01                max_step=20 prob.EOS.mu=0.1 0.01 prob.rho=10.0 1.0
+diffuse                 max_step=20 PhaseField.Eta_Multiplier=1.0
+# --- Scheme (three ghost cells through the user wall condition) and relaxation ---
+scheme-weno5            max_step=20 FiniteVolume.Scheme=WENO5
+no-relaxation           max_step=20 Physics.pressure_relaxation=0
+
+# ===== Heat conduction between two materials (prob.problem = HeatConduction2Mat) =====
+
+[HeatConduction2Mat-5Eq]     BUILD=5Eq     inputs=prob/inputs.HeatConduction2Mat-5Eq
+# The base inputs use the five-equation model with DIFFUSION = true (the reference of the
+# six-equation runs) and an interface one cell wide.
+# --- A sharp interface (a step in alpha) ---
+sharp                   max_step=20 PhaseField.Eta_Multiplier=0.0
+
+[HeatConduction2Mat-6Eq]     BUILD=6Eq     inputs=prob/inputs.HeatConduction2Mat-6Eq
+# The base inputs use the two-phase six-equation model with DIFFUSION = true, an interface one
+# cell wide and the pressure-temperature relaxation (the mixture conducts as one medium).
+# --- A sharp interface (a step in alpha), and one AMR level at the interface ---
+sharp                   max_step=20 PhaseField.Eta_Multiplier=0.0
+amr                     max_step=20 amr.max_level=1
+# --- Pressure relaxation only: each phase conducts through itself, no heat crosses ---
+relax-p                 max_step=20 Physics.pressure_temperature_relaxation=0 Physics.pressure_relaxation=1
+
+[HeatConduction2Mat-6Eq-N]   BUILD=6Eq-N   inputs=prob/inputs.HeatConduction2Mat-6Eq-N
+# The base inputs use the N-phase six-equation model (NPHASE = 2) with DIFFUSION = true, an
+# interface one cell wide and pressure relaxation; no heat crosses the interface (no temperature
+# relaxation in this model).
+# --- A sharp interface (a step in alpha), and no relaxation ---
+sharp                   max_step=20 PhaseField.Eta_Multiplier=0.0
+no-relaxation           max_step=20 Physics.pressure_relaxation=0
+
+# ===== Viscous shock tube (prob.problem = ViscousShockTube) =====
+
+[ViscousShockTube-5Eq]       BUILD=5Eq     inputs=prob/inputs.ViscousShockTube-5Eq
+# The base inputs use the five-equation model with DIFFUSION = true, WENO5 and HLLC.
+# --- WENO5 via quadrature (FIVEEQS in 2D only) ---
+quad                    max_step=10 FiniteVolume.Quad=1
+
+[ViscousShockTube-6Eq]       BUILD=6Eq     inputs=prob/inputs.ViscousShockTube-6Eq
+# The base inputs use the two-phase six-equation model with DIFFUSION = true, WENO5, HLLC and
+# pressure relaxation.
+relax-pT                max_step=10 Physics.pressure_relaxation=0 Physics.pressure_temperature_relaxation=1
+
+[ViscousShockTube-6Eq-N]     BUILD=6Eq-N   inputs=prob/inputs.ViscousShockTube-6Eq-N
+# The base inputs use the N-phase six-equation model (NPHASE = 2) with DIFFUSION = true, WENO5,
+# HLLC and pressure relaxation.
+no-relaxation           max_step=10 Physics.pressure_relaxation=0
+riemann-hll             max_step=10 Physics.RiemannSolver=HLL
+
+# ===== Viscous and conductive advection: a drop (prob.problem = AdvectionViscousDrop) and four
+# shapes in five materials (prob.problem = AdvectionViscousMaterials) =====
+
+[Advection-Viscous-6Eq]      BUILD=6Eq     inputs=prob/inputs.Advection-Viscous-6Eq
+# The base inputs use the two-phase six-equation model with DIFFUSION = true, MUSCL-MC, HLLC,
+# pressure relaxation and ACDI Phase-Field with the explicit treatment.
+# --- Relaxations ---
+no-relaxation           max_step=10 Physics.pressure_relaxation=0
+relax-pT                max_step=10 Physics.pressure_relaxation=0 Physics.pressure_temperature_relaxation=1
+# --- Interface treatment ---
+thinc                   max_step=10 FiniteVolume.THINC=1
+pf-off                  max_step=10 PhaseField.phase_field=0
+
+[Advection-Viscous-6Eq-N]    BUILD=6Eq-N3  inputs=prob/inputs.Advection-Viscous-6Eq-N
+# The base inputs use the N-phase six-equation model (NPHASE = 3, phase 3 absent) with
+# DIFFUSION = true, MUSCL-MC, HLLC, pressure relaxation and ACDI Phase-Field with the
+# explicit treatment.
+# --- Relaxation ---
+no-relaxation           max_step=10 Physics.pressure_relaxation=0
+# --- Interface treatment ---
+thinc                   max_step=10 FiniteVolume.THINC=1
+pf-off                  max_step=10 PhaseField.phase_field=0
+
+[Advection-Viscous-5Eq-N]    BUILD=5Eq-N   inputs=prob/inputs.Advection-Viscous-5Eq-N

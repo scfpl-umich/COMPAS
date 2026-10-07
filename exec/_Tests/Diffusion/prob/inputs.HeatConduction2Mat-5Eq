@@ -1,0 +1,148 @@
+# =====================================================================
+# HEAT CONDUCTION BETWEEN TWO MATERIALS, FIVE-EQUATION MODEL
+# Two ideal gases in contact at x = 0 at the uniform pressure 1 and at
+# rest: phase 1 (gamma 1.4, cv 2.5, kappa 0.0063) on the left at
+# T = 1.005, phase 2 (gamma 5/3, cv 0.375, kappa 0.00225, four times
+# denser) on the right at T = 0.995. The interface has a tanh profile one
+# cell wide. The model has one temperature per cell (the mixture
+# temperature) and conducts it with the mixture conductivity
+# alpha_1 kappa_1 + alpha_2 kappa_2, averaged to the faces. Between two
+# semi-infinite media the interface takes the temperature
+# T_i = (e_L T_L + e_R T_R)/(e_L + e_R), e = sqrt(kappa rho cp) (here
+# 1.0016), and each side follows an erf profile with its own diffusivity.
+# A strip of 256 x 8 cells, periodic in y, closed by slip (adiabatic)
+# walls in x. This is the base test of conduction across a material
+# interface with DIFFUSION = true for the five-equation model, the
+# reference of the six-equation cases; variants.txt reruns it with a
+# sharp interface.
+# Nondimensional units.
+# =====================================================================
+
+# =====================================================================
+# SIMULATION CONTROL
+# =====================================================================
+max_step  = 1000000         # Maximum number of time steps to advance
+stop_time = 0.5
+
+
+# =====================================================================
+# DOMAIN GEOMETRY
+# =====================================================================
+geometry.prob_lo     = -0.5 0.0         # Lower bounds (x,y)
+geometry.prob_hi     =  0.5 0.03125     # Upper bounds (x,y): a strip of square cells
+geometry.is_periodic =  0   1           # Periodic in y
+
+
+# =====================================================================
+# BOUNDARY CONDITIONS
+#   0 = Interior    | 1 = Inflow      | 2 = Outflow
+#   3 = Symmetry    | 4 = SlipWall    | 5 = NoSlipWall
+# =====================================================================
+run.lo_bc = 4 0              # Slip (adiabatic) walls in x
+run.hi_bc = 4 0
+
+
+# =====================================================================
+# VERBOSITY
+# =====================================================================
+amr.v       = 1
+run.sum_var = 0
+
+
+# =====================================================================
+# GRID AND REFINEMENT
+# =====================================================================
+amr.n_cell      = 256 8      # Base grid resolution (coarsest level)
+amr.max_level   = 0          # No refinement; the amr variant adds a level at the contact
+amr.ref_ratio   = 2 2 2 2 2 2
+amr.n_error_buf = 1
+
+amr.blocking_factor_x = 8
+amr.blocking_factor_y = 8
+amr.max_grid_size     = 64
+amr.regrid_int        = 2
+amr.Interpolater      = "lincc_interp"
+
+
+# =====================================================================
+# TIME STEPPING
+# =====================================================================
+run.cfl                     = 0.4
+run.vnn                     = 0.2          # Diffusive limit, dt = vnn dx^2 / (largest diffusivity)
+run.do_subcycle             = 1
+run.check_cfl               = 0
+run.timestep_change_limiter = 0
+run.TimeIntegrator          = "TVD-RK3"
+run.do_reflux               = 1
+
+
+# =====================================================================
+# REFINEMENT CRITERIA (with amr.max_level > 0): the temperature jump
+# =====================================================================
+run.refine.ref_vars    = T
+run.refine.T.max_level = 10
+run.refine.T.grad      = 0.0005 0.0005 0.0005 0.0005
+
+
+# =====================================================================
+# OUTPUT
+# =====================================================================
+amr.case_name        = ./plot/HeatConduction2Mat-5Eq
+amr.plot_int         = 1000000
+amr.t_write_interval = 0.25                # A plotfile every 0.25
+run.output_vars      = a1rho1 a2rho2 rho_u rho_v rho_E a1 rho u v P T
+amr.chk_file         = ./checkpoints/chk
+amr.chk_int          = -1
+run.user_output_int  = 10                  # Heat and temperature errors every 10 coarse steps
+
+
+# =====================================================================
+# PHYSICS AND METHODS
+# =====================================================================
+Physics.source_term                     = 1   # K div(u) term of the five-equation model
+Physics.RiemannSolver                   = "HLLC"
+
+FiniteVolume.Scheme = "MUSCL-MC"
+FiniteVolume.THINC  = 0
+
+PhaseField.phase_field    = 0
+PhaseField.Eta_Multiplier = 1.0            # Width of the initial profile of alpha, in cells (0: a step)
+
+
+# =====================================================================
+# PROBLEM
+# =====================================================================
+prob.P0     = 1.0
+prob.T_L    = 1.005
+prob.T_R    = 0.995
+prob.x0     = 0.0
+prob.eps    = 1.0e-8                       # Trace of the other phase
+prob.window = 0.1875                       # Half width of the window of the temperature errors
+
+
+# =====================================================================
+# MATERIALS
+# Two ideal gases (stiffened gas with pinf = 0): R_1 = (gamma_1 - 1) cv_1
+# = 1 and R_2 = 0.25, so rho_1 = P/T and rho_2 = 4 P/T
+#   phase 1: rho cp = 3.5/T,   chi = 0.0018 T,  e = 0.148 (T = 1)
+#   phase 2: rho cp = 2.5/T,   chi = 0.0009 T,  e = 0.075
+# =====================================================================
+prob.EOS.EOS     = 1
+prob.EOS.gamma_1 = 1.4
+prob.EOS.gamma_2 = 1.6666666666666667
+prob.EOS.pinf_1  = 0.0
+prob.EOS.pinf_2  = 0.0
+prob.EOS.cv_1    = 2.5
+prob.EOS.cv_2    = 0.375
+
+prob.EOS.mu_1    = 0.0                     # No viscosity
+prob.EOS.mu_2    = 0.0
+prob.EOS.muB_1   = 0.0
+prob.EOS.muB_2   = 0.0
+prob.EOS.kappa_1 = 0.0063
+prob.EOS.kappa_2 = 0.00225
+
+# =====================================================================
+# PROBLEM OF THE DIFFUSION CASE (prob/Parm.H)
+# =====================================================================
+prob.problem = HeatConduction2Mat

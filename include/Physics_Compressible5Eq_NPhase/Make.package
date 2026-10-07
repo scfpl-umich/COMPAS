@@ -48,5 +48,4 @@ CEXE_headers += Conservative2Lambda_HLL_Compressible5Eq_NPhase.H
 CEXE_headers += Riemann_HLL_Bound_Compressible5Eq_NPhase.H
 CEXE_headers += Conservative2K_Compressible5Eq_NPhase.H
 
-CEXE_headers += RefluxSourceTerms_Compressible5Eq_NPhase.H
 CEXE_headers += AnalyticNonConservativeFlux_Compressible5Eq_NPhase.H

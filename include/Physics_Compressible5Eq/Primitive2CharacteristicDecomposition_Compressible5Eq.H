@@ -57,9 +57,16 @@ void Primitive2CharacteristicDecomposition(amrex::Array<amrex::Array<amrex::Real
     NonConservative(K,
                     p,
                     Alpha1,
+                    Alpha1_rho1,
+                    Alpha2_rho2,
                     EOS_Parameter,
                     ID_K);
     amrex::Real K1 = K[0];
+    // alpha_1 times the Kapila K_1: for NASG with K on, phi_1 (1 + K1) - alpha_1 (see NonConservative)
+    amrex::Real Alpha1_K1 = Alpha1*K1;
+    if (ID_K == 1 && EOS_Parameter.C1 > 0.0){
+        Alpha1_K1 = NASG_Phi(Alpha1, Alpha1_rho1, EOS_Parameter.C1)*(1.0 + K1) - Alpha1;
+    }
     
     amrex::Real V;
     //x
@@ -122,7 +129,7 @@ void Primitive2CharacteristicDecomposition(amrex::Array<amrex::Array<amrex::Real
         Left[4][4] = 1.0;
     }
 #endif    
-    Left[2+AMREX_SPACEDIM][2+AMREX_SPACEDIM] = (Alpha1*K1)/(rho*c*c);
+    Left[2+AMREX_SPACEDIM][2+AMREX_SPACEDIM] = (Alpha1_K1)/(rho*c*c);
     Left[2+AMREX_SPACEDIM][3+AMREX_SPACEDIM] = 1.0;
     
     Left[3+AMREX_SPACEDIM][2+ID_Dimension] = 1.0;
@@ -176,9 +183,9 @@ void Primitive2CharacteristicDecomposition(amrex::Array<amrex::Array<amrex::Real
     Right[2+AMREX_SPACEDIM][0] = -(rho*c)/2.0;
     Right[2+AMREX_SPACEDIM][3+AMREX_SPACEDIM] = (rho*c)/2.0;
     
-    Right[3+AMREX_SPACEDIM][0] = (Alpha1*K1)/(2.0*c);
+    Right[3+AMREX_SPACEDIM][0] = (Alpha1_K1)/(2.0*c);
     Right[3+AMREX_SPACEDIM][2+AMREX_SPACEDIM] = 1.0;
-    Right[3+AMREX_SPACEDIM][3+AMREX_SPACEDIM] = -(Alpha1*K1)/(2.0*c);
+    Right[3+AMREX_SPACEDIM][3+AMREX_SPACEDIM] = -(Alpha1_K1)/(2.0*c);
     
 }
 

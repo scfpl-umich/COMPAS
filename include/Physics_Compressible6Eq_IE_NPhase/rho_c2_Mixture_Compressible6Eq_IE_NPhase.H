@@ -10,15 +10,16 @@
 #include<Macros.H>
 #if (PHYSICS==SIXEQS_IE_NPHASE)
 
+// Frozen mixture value: rho c^2 = sum_k alpha_k rho_k c_k^2
 AMREX_GPU_DEVICE
 AMREX_FORCE_INLINE
 void rho_c2_Mixture(amrex::Real& rho_c2,
-                    amrex::Real const& Alpha1_rho1_c12,
-                    amrex::Real const& Alpha2_rho2_c22)
+                    amrex::Array<amrex::Real,NPHASE> const& Alphap_rhop_cp2)
 {
-
-    // rho_c2 = Alpha1_rho1_c12 + Alpha2_rho2_c22;
-
+    rho_c2 = 0.0;
+    for (int i_Phase = 0; i_Phase < NPHASE; i_Phase++){
+        rho_c2 += Alphap_rhop_cp2[i_Phase];
+    }
 }
 
 #endif

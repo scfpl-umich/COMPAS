@@ -34,6 +34,8 @@ void FVM_SurfaceIntegral_NC(int i, int j, int k,
         Conservative[iState] = dof_in(i,j,k,iState);
     }
     amrex::Real Alpha1 = Conservative[INDEX_VolumeFraction1];
+    // Kapila coefficient alpha_1 (1 + K_1) = phi_1 (1 + K_1) for NASG (see NonConservative)
+    amrex::Real Phi1 = (ID_K == 1) ? NASG_Phi(Alpha1, Conservative[INDEX_Mass1], EOS_Parameter.C1) : Alpha1;
     amrex::Array<amrex::Real,2> K;
     Conservative2K(K,
                    Conservative, EOS_Parameter,
@@ -46,7 +48,7 @@ void FVM_SurfaceIntegral_NC(int i, int j, int k,
         AMREX_D_DECL(flxxNC, flxyNC, flxzNC),
         AMREX_D_DECL(dx    , dy    , dz    ));
 
-    dof_out(i,j,k,INDEX_VolumeFraction1) += Alpha1*(1.0 + K1)*Div_Vel;
+    dof_out(i,j,k,INDEX_VolumeFraction1) += Phi1*(1.0 + K1)*Div_Vel;
 }
 
 

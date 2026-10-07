@@ -760,93 +760,28 @@ Compressible_PhaseField::PhaseField_AdvanceAtLevel (Vector<MultiFab>& mf_new,
 }
 
 
-//Advance state vector at all levels with different RK schemes
+// PhaseField_AdvanceAllLevels (the step without subcycling): Class_Compressible_PhaseField_StageCoupling.cpp
+
+
+// Phase-Field face fluxes of level lev from the state U with ghost cells and the face gradients
+// Grad_Q of the level: in fluxes the conservative fluxes per unit area, in fluxes_nc the face
+// quantities of the Phase-Field non-conservative terms, and the speeds in PF_c_max[lev] (reset at
+// stage 0). As in ComputeFaceFluxes each tile computes the faces of nodaltilebox only
 void
-Compressible_PhaseField::PhaseField_AdvanceAllLevels (Vector<MultiFab>& mf_new,
-                                                      Vector<MultiFab>& mf_old,
-                                                      Vector<Array<MultiFab,AMREX_SPACEDIM>> const& Grad_Q,
-                                                      Real time,
-                                                      Real dt_lev,
-                                                      int ncycle)
+Compressible_PhaseField::PhaseField_ComputeFaceFluxes (MultiFab const& U,
+                                                       Array<MultiFab,AMREX_SPACEDIM> const& Grad_Q,
+                                                       Array<MultiFab,AMREX_SPACEDIM>& fluxes,
+                                                       Array<MultiFab,AMREX_SPACEDIM>& fluxes_nc,
+                                                       int lev,
+                                                       int stage)
 {
-    for (int lev = 0; lev <= finest_level; lev++){
-        t_old[lev] = t_new[lev];
-        t_new[lev] += dt_lev;
-    }
-    
-    for (int lev = 0; lev <= finest_level; lev++){
-        if (ID_TimeIntegrator == "ForwardEuler"){
-            PhaseField_ForwardEuler(mf_new,
-                                    mf_old, 
-                                    Grad_Q, 
-                                    lev,
-                                    time,
-                                    dt_lev,
-                                    ncycle);
-        }  else if (ID_TimeIntegrator == "TVD-RK2"){
-            PhaseField_SecondOrderSSPRK(mf_new,
-                                        mf_old,
-                                        Grad_Q, 
-                                        lev,
-                                        time,
-                                        dt_lev,
-                                        ncycle);
-        } else if (ID_TimeIntegrator == "TVD-RK3"){
-            PhaseField_ThirdOrderSSPRK(mf_new,
-                                       mf_old,
-                                       Grad_Q, 
-                                       lev,
-                                       time,
-                                       dt_lev,
-                                       ncycle);
-        } else if (ID_TimeIntegrator == "RK4"){
-            PhaseField_FourthOrderRK(mf_new,
-                                     mf_old,
-                                     Grad_Q, 
-                                     lev,
-                                     time,
-                                     dt_lev,
-                                     ncycle);
-        }
-    }
-
-    if (do_reflux){
-        for (int lev = 0; lev < finest_level; lev++){
-            PhaseField_RefluxLev(lev);
-        }
-    }
-
-}
-
-
-//Advance state vector at a level with the Phase-Field flux vector
-void
-Compressible_PhaseField::PhaseField_compute_dUdt_FV (MultiFab& mf_new,
-                                                     MultiFab& mf_old,
-                                                     Array<MultiFab,AMREX_SPACEDIM> const& Grad_Q,
-                                                     int lev,
-                                                     Real dt_lev,
-                                                     int ncycle,
-                                                     int stage,
-                                                     FluxRegister* fr_as_crse,
-                                                     FluxRegister* fr_as_fine,
-                                                     FluxRegister* fr_as_crse_nc,
-                                                     FluxRegister* fr_as_fine_nc)
-{
-BL_PROFILE("PhaseField_compute_dUdt_FV()");
-
-
-    //==============================================================
-    //         Everything below this point is good (I think)
-    //==============================================================
+BL_PROFILE("PhaseField_ComputeFaceFluxes()");
 
     MultiFab& c_max_lev = PF_c_max[lev];
     if (stage == 0){
         c_max_lev.setVal(0.0);
     }
 
-
-    auto const prob_lo = Geom(lev).ProbLoArray();
     const Real dx = geom[lev].CellSize(0);
 #if (AMREX_SPACEDIM > 1)
     const Real dy = geom[lev].CellSize(1);
@@ -859,50 +794,20 @@ BL_PROFILE("PhaseField_compute_dUdt_FV()");
     const Real dz = 1.0;
 #endif
     amrex::Array<amrex::Real, AMREX_SPACEDIM> const dX = {AMREX_D_DECL(dx,dy,dz)};
-
-
-    // construct the fluxes
-    Array<MultiFab,AMREX_SPACEDIM> fluxes;
-#if (NONCONSERVATIVE == true)
-    Array<MultiFab,AMREX_SPACEDIM> fluxes_nc;
-#endif
-    // if (do_reflux)
-    // {
-        for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
-        {
-            BoxArray ba = grids[lev];
-            ba.surroundingNodes(idim);
-            fluxes[idim].define(ba, dmap[lev], NSTATE, 0);
-#if (NONCONSERVATIVE == true)
-            fluxes_nc[idim].define(ba, dmap[lev], NC_TERMS, 0);
-#endif
-        }
-    // }
+    amrex::ignore_unused(dy, dz, fluxes_nc);
 
     Parm const* lparm = d_parm;
 
-    const int lID_COORDSYS = ID_COORDSYS;
-
-//==================================================
-// Conservative surface integral 
-//==================================================
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
     {
-        for (MFIter mfi(mf_new,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        for (MFIter mfi(U,TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            // ======== FLUX CALC AND UPDATE =========
-            const Box& bx = mfi.tilebox();
-
             // Pull the data into an array
-            Array4<Real const> statein   = mf_old.const_array(mfi);
-            Array4<Real      > dUdt      = mf_new.array(mfi);
+            Array4<Real const> statein   = U.const_array(mfi);
             Array4<Real      > c_max_new = c_max_lev.array(mfi);
 {BL_PROFILE("PhaseField_compute_dUdt_FV::{ computing the Phase-Field fluxes }");
-            // There will also need to be some function calls before this to get the slope reconstructions
-            // final edge states
-            // ===========================
             for (int idim = 0; idim < AMREX_SPACEDIM; idim++){
                 Array4<Real const> GradX_Q = Grad_Q[idim].const_array(mfi);
                 Array4<Real      > flux    = fluxes[idim].array(mfi);
@@ -910,8 +815,8 @@ BL_PROFILE("PhaseField_compute_dUdt_FV()");
                 Array4<Real      > fluxNC  = fluxes_nc[idim].array(mfi);
 #endif
 
-                //Box bx_face = mfi.nodaltilebox(idim);
-                Box bx_face = surroundingNodes(bx, idim);
+                // the faces of this tile only (the high face of a box with its last tile)
+                const Box bx_face = mfi.nodaltilebox(idim);
                 amrex::ParallelFor(bx_face,
                 [=] AMREX_GPU_DEVICE (int i, int j, int k)
                 {
@@ -923,7 +828,7 @@ BL_PROFILE("PhaseField_compute_dUdt_FV()");
                     Array<Real,NSTATE> fhat;
                     Array<Real,NC_TERMS> fhatNC;
                     Real cmax;
-                    
+
                     FVM_Conservative2FluxPhaseField_K(i, j, k,
                                                       fhat, fhatNC, cmax,
                                                       statein, grad_Q, *lparm,
@@ -942,12 +847,58 @@ BL_PROFILE("PhaseField_compute_dUdt_FV()");
                 });
             } // end idim
 }
+        } // end mfi
+    } // end omp
+}
+
+
+// Phase-Field right-hand side dUdt of level lev (overwritten) from the face fluxes of
+// PhaseField_ComputeFaceFluxes: the conservative surface integral and the Phase-Field
+// non-conservative terms, from the same face MultiFabs
+void
+Compressible_PhaseField::PhaseField_FluxDivergence (MultiFab& dUdt_mf,
+                                                    MultiFab const& U,
+                                                    Array<MultiFab,AMREX_SPACEDIM> const& fluxes,
+                                                    Array<MultiFab,AMREX_SPACEDIM> const& fluxes_nc,
+                                                    int lev)
+{
+BL_PROFILE("PhaseField_FluxDivergence()");
+
+    auto const prob_lo = Geom(lev).ProbLoArray();
+    const Real dx = geom[lev].CellSize(0);
+#if (AMREX_SPACEDIM > 1)
+    const Real dy = geom[lev].CellSize(1);
+#else
+    const Real dy = 1.0;
+#endif
+#if (AMREX_SPACEDIM > 2)
+    const Real dz = geom[lev].CellSize(2);
+#else
+    const Real dz = 1.0;
+#endif
+    amrex::Array<amrex::Real, AMREX_SPACEDIM> const dX = {AMREX_D_DECL(dx,dy,dz)};
+    amrex::ignore_unused(dy, dz, fluxes_nc);
+
+    Parm const* lparm = d_parm;
+
+    const int lID_COORDSYS = ID_COORDSYS;
+
+#ifdef AMREX_USE_OMP
+#pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+    {
+        for (MFIter mfi(dUdt_mf,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const Box& bx = mfi.tilebox();
+
+            Array4<Real const> statein = U.const_array(mfi);
+            Array4<Real      > dUdt    = dUdt_mf.array(mfi);
 
             AMREX_D_TERM(Array4<Real const> fluxx_c = fluxes[0].const_array(mfi);,
                          Array4<Real const> fluxy_c = fluxes[1].const_array(mfi);,
                          Array4<Real const> fluxz_c = fluxes[2].const_array(mfi));
 {BL_PROFILE("COMPAS::PhaseField_compute_dUdt_FV::surface_integral()");
-            // Do a conservative update 
+            // Do a conservative update
             // Forward Euler
             // ===========================
             amrex::ParallelFor(bx,
@@ -989,43 +940,42 @@ BL_PROFILE("PhaseField_compute_dUdt_FV()");
             });
 }
 #endif
-
-            if (do_reflux)
-            {
-                for (int idim = 0; idim < AMREX_SPACEDIM; idim++){
-                    amrex::Real dArea;
-                    if (idim == 0){
-                        dArea = dy*dz;
-                    }
-                    else if (idim == 1){
-                        dArea = dx*dz;
-                    }
-                    else if (idim == 2){
-                        dArea = dx*dy;
-                    }
-
-                    Array4<Real> flux = fluxes[idim].array(mfi);
-#if (NONCONSERVATIVE == true)
-                    Array4<Real> fluxNC = fluxes_nc[idim].array(mfi);
-#endif
-                    //Box bx_face = mfi.nodaltilebox(idim);
-                    Box bx_face = surroundingNodes(bx, idim);
-                    amrex::ParallelFor(bx_face,
-                    [=] AMREX_GPU_DEVICE (int i, int j, int k)
-                    {
-                        for (int iState = 0; iState < NSTATE; iState++){
-                            flux(i,j,k,iState) *= dArea;
-                        }
-#if (NONCONSERVATIVE == true)
-                        for (int iState = 0; iState < NC_TERMS; iState++){
-                            fluxNC(i,j,k,iState) *= dArea;
-                        }
-#endif
-                    });
-                } // end idim
-            }
         } // end mfi
     } // end omp
+}
+
+
+//Advance state vector at a level with the Phase-Field flux vector (per-level integrators of the
+//subcycled step; with do_reflux the area-weighted fluxes go to the flux registers)
+void
+Compressible_PhaseField::PhaseField_compute_dUdt_FV (MultiFab& mf_new,
+                                                     MultiFab& mf_old,
+                                                     Array<MultiFab,AMREX_SPACEDIM> const& Grad_Q,
+                                                     int lev,
+                                                     Real dt_lev,
+                                                     int ncycle,
+                                                     int stage,
+                                                     FluxRegister* fr_as_crse,
+                                                     FluxRegister* fr_as_fine,
+                                                     FluxRegister* fr_as_crse_nc,
+                                                     FluxRegister* fr_as_fine_nc)
+{
+BL_PROFILE("PhaseField_compute_dUdt_FV()");
+    amrex::ignore_unused(ncycle, fr_as_crse_nc, fr_as_fine_nc);
+
+    // construct the fluxes
+    Array<MultiFab,AMREX_SPACEDIM> fluxes;
+    Array<MultiFab,AMREX_SPACEDIM> fluxes_nc;
+    DefineFaceFluxes(fluxes, fluxes_nc, lev);
+
+    PhaseField_ComputeFaceFluxes(mf_old, Grad_Q, fluxes, fluxes_nc, lev, stage);
+
+    PhaseField_FluxDivergence(mf_new, mf_old, fluxes, fluxes_nc, lev);
+
+    if (do_reflux)
+    {
+        ScaleFaceFluxesByArea(fluxes, fluxes_nc, lev);
+    }
 
     if (fr_as_crse) {
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
@@ -1420,8 +1370,9 @@ Compressible_PhaseField::PhaseField_CH(amrex::Vector<amrex::Array<amrex::MultiFa
                     {
                         Array4<Real> J_FluxArray = J_Flux[lev][idim].array(mfi);
                     
-                        //Box bx_face = mfi.nodaltilebox(idim);
-                        Box bx_face = surroundingNodes(bx, idim);
+                        // the faces of this tile only, so that no two OpenMP threads write one face
+                        amrex::ignore_unused(bx);
+                        const Box bx_face = mfi.nodaltilebox(idim);
                         amrex::ParallelFor(bx_face,
                         [=] AMREX_GPU_DEVICE (int i, int j, int k)
                         {
@@ -1498,8 +1449,9 @@ Compressible_PhaseField::PhaseField_CDI(amrex::Vector<amrex::Array<amrex::MultiF
                     {
                         Array4<Real> J_FluxArray = J_Flux[lev][idim].array(mfi);
                     
-                        //Box bx_face = mfi.nodaltilebox(idim);
-                        Box bx_face = surroundingNodes(bx, idim);
+                        // the faces of this tile only, so that no two OpenMP threads write one face
+                        amrex::ignore_unused(bx);
+                        const Box bx_face = mfi.nodaltilebox(idim);
                         amrex::ParallelFor(bx_face,
                         [=] AMREX_GPU_DEVICE (int i, int j, int k)
                         {
@@ -1659,8 +1611,9 @@ Compressible_PhaseField::PhaseField_ACDI(amrex::Vector<amrex::Array<amrex::Multi
                     {
                         Array4<Real> J_FluxArray = J_Flux[lev][idim].array(mfi);
                     
-                        //Box bx_face = mfi.nodaltilebox(idim);
-                        Box bx_face = surroundingNodes(bx, idim);
+                        // the faces of this tile only, so that no two OpenMP threads write one face
+                        amrex::ignore_unused(bx);
+                        const Box bx_face = mfi.nodaltilebox(idim);
                         amrex::ParallelFor(bx_face,
                         [=] AMREX_GPU_DEVICE (int i, int j, int k)
                         {
@@ -2265,8 +2218,9 @@ Compressible_PhaseField::PhaseField_GradQPF(amrex::Vector<amrex::Array<amrex::Mu
                     for (int idim = 0; idim < AMREX_SPACEDIM; idim++){
                         Array4<Real> bcoefArray = bcoef[lev][idim].array(mfi);
 
-                        //Box bx_face = mfi.nodaltilebox(idim);
-                        Box bx_face = surroundingNodes(bx, idim);
+                        // the faces of this tile only, so that no two OpenMP threads write one face
+                        amrex::ignore_unused(bx);
+                        const Box bx_face = mfi.nodaltilebox(idim);
                         amrex::ParallelFor(bx_face,
                         [=] AMREX_GPU_DEVICE (int i, int j, int k)
                         {
@@ -2386,8 +2340,9 @@ Compressible_PhaseField::PhaseField_GradQPF(amrex::Vector<amrex::Array<amrex::Mu
                     Array4<Real const> J_FluxArray   = J_Flux  [lev][idim].const_array(mfi);
                     Array4<Real      > Grad_QPFArray = Grad_QPF[lev][idim].array(mfi);
                     
-                    //Box bx_face = mfi.nodaltilebox(idim);
-                    Box bx_face = surroundingNodes(bx, idim);
+                    // the faces of this tile only, so that no two OpenMP threads write one face
+                    amrex::ignore_unused(bx);
+                    const Box bx_face = mfi.nodaltilebox(idim);
                     amrex::ParallelFor(bx_face,
                     [=] AMREX_GPU_DEVICE (int i, int j, int k)
                     {
@@ -2731,7 +2686,7 @@ Compressible_PhaseField::PhaseField_ThirdOrderSSPRK (Vector<MultiFab>& mf_new,
                                Uborder,
                                Grad_Q[lev],
                                lev,
-                               Real(0.166666666667)*dt_lev,
+                               (Real(1.0)/Real(6.0))*dt_lev,
                                ncycle,
                                stage,
                                fr_as_crse,
@@ -2755,7 +2710,7 @@ Compressible_PhaseField::PhaseField_ThirdOrderSSPRK (Vector<MultiFab>& mf_new,
                                Uborder,
                                Grad_Q[lev],
                                lev,
-                               Real(0.166666666667)*dt_lev,
+                               (Real(1.0)/Real(6.0))*dt_lev,
                                ncycle,
                                stage,
                                fr_as_crse,
@@ -2781,15 +2736,15 @@ Compressible_PhaseField::PhaseField_ThirdOrderSSPRK (Vector<MultiFab>& mf_new,
                                Uborder,
                                Grad_Q[lev],
                                lev,
-                               Real(0.666666666667)*dt_lev,
+                               (Real(2.0)/Real(3.0))*dt_lev,
                                ncycle,
                                stage,
                                fr_as_crse,
                                fr_as_fine,
                                fr_as_crse_nc,
                                fr_as_fine_nc);
-    MultiFab::LinComb(U_new, Real(0.666666666667), Uborder, 0, Real(0.333333333333), U_old, 0, 0, NSTATE, 0);
-    MultiFab::Saxpy(U_new, Real(0.666666666667)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::LinComb(U_new, (Real(2.0)/Real(3.0)), Uborder, 0, (Real(1.0)/Real(3.0)), U_old, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(2.0)/Real(3.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     PhaseField_PostTimeStage(U_new,ncycle,time+dt_lev,lev);
     PhaseField_PostTimeStep(U_new,ncycle,time+dt_lev,lev);
@@ -2872,7 +2827,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
                                Uborder,
                                Grad_Q[lev], 
                                lev, 
-                               Real(0.166666666667)*dt_lev, 
+                               (Real(1.0)/Real(6.0))*dt_lev, 
                                ncycle, 
                                stage, 
                                fr_as_crse, 
@@ -2882,7 +2837,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
     /* u_1 = u_n + 1/2 dt R(u_n) */
     MultiFab::LinComb(U_temp, Real(1.0), Uborder, 0, Real(0.5)*dt_lev,            dUdt, 0, 0, NSTATE, 0);
     /* u_* = u_n + 1/6 dt R(u_n) */
-    MultiFab::LinComb(U_new,  Real(1.0), Uborder, 0, Real(0.166666666667)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::LinComb(U_new,  Real(1.0), Uborder, 0, (Real(1.0)/Real(6.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     PhaseField_PostTimeStage(U_temp,ncycle,time+Real(0.5)*dt_lev,lev);
 
@@ -2902,7 +2857,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
                                Uborder,
                                Grad_Q[lev], 
                                lev, 
-                               Real(0.333333333333)*dt_lev, 
+                               (Real(1.0)/Real(3.0))*dt_lev, 
                                ncycle, 
                                stage, 
                                fr_as_crse, 
@@ -2912,7 +2867,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
     /* u_2 = u_n + 1/2 dt R(u_1) */
     MultiFab::LinComb(U_temp, Real(1.0), U_old, 0, Real(0.5)*dt_lev, dUdt, 0, 0, NSTATE, 0);
     /* u_** = u_* + 1/3 dt R(u_1) */
-    MultiFab::Saxpy(U_new, Real(0.333333333333)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(1.0)/Real(3.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     PhaseField_PostTimeStage(U_temp,ncycle,time+Real(0.5)*dt_lev,lev);
 
@@ -2932,7 +2887,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
                                Uborder,
                                Grad_Q[lev], 
                                lev, 
-                               Real(0.333333333333)*dt_lev, 
+                               (Real(1.0)/Real(3.0))*dt_lev, 
                                ncycle, 
                                stage, 
                                fr_as_crse, 
@@ -2942,7 +2897,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
     /* u_3 = u_n + dt R(u_2) */
     MultiFab::LinComb(U_temp, Real(1.0), U_old, 0, Real(1.0)*dt_lev, dUdt, 0, 0, NSTATE, 0);
     /* u_*** = u_** + 1/3 dt R(u_2) */
-    MultiFab::Saxpy(U_new, Real(0.333333333333)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(1.0)/Real(3.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     PhaseField_PostTimeStage(U_temp,ncycle,time+dt_lev,lev);
 
@@ -2962,7 +2917,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
                                Uborder,
                                Grad_Q[lev], 
                                lev, 
-                               Real(0.166666666667)*dt_lev, 
+                               (Real(1.0)/Real(6.0))*dt_lev, 
                                ncycle, 
                                stage, 
                                fr_as_crse, 
@@ -2970,7 +2925,7 @@ Compressible_PhaseField::PhaseField_FourthOrderRK (Vector<MultiFab>& mf_new,
                                fr_as_crse_nc, 
                                fr_as_fine_nc);
     /* u_n+1 = u_*** + 1/6 dt R(u_3) */
-    MultiFab::Saxpy(U_new, Real(0.166666666667)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(1.0)/Real(6.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     PhaseField_PostTimeStage(U_new,ncycle,time+dt_lev,lev);
     PhaseField_PostTimeStep(U_new,ncycle,time+dt_lev,lev);
@@ -3068,10 +3023,8 @@ Compressible_PhaseField::PhaseField_TimeStepNoSubcycling (Vector<MultiFab>& mf_n
     // Make sure the coarser levels are consistent with the finer levels
     AverageDown (mf_new);
 
-    for (int lev = 0; lev <= finest_level; lev++){
-        ++istep[lev];
-    }
-
+    // istep counts the time steps of the flow (timeStepNoSubcycling); the Phase-Field steps inside
+    // one of them do not count, as in PhaseField_TimeStepWithSubcycling
 }
 
 
@@ -3168,31 +3121,47 @@ Compressible_PhaseField::SetPhysicsBC ()
 }
 
 
+// Face MultiFabs of level lev: the NSTATE conservative fluxes and the NC_TERMS face quantities of
+// the non-conservative terms (not defined without NONCONSERVATIVE)
 void
-Compressible_PhaseField::compute_dUdt_FV (MultiFab& mf_new,
-                                          MultiFab& mf_old,
-                                          int lev,
-                                          Real time,
-                                          Real dt_lev,
-                                          int ncycle,
-                                          int stage,
-                                          FluxRegister* fr_as_crse,
-                                          FluxRegister* fr_as_fine,
-                                          FluxRegister* fr_as_crse_nc,
-                                          FluxRegister* fr_as_fine_nc)
+Compressible_PhaseField::DefineFaceFluxes (Array<MultiFab,AMREX_SPACEDIM>& fluxes,
+                                           Array<MultiFab,AMREX_SPACEDIM>& fluxes_nc,
+                                           int lev)
 {
-BL_PROFILE("compute_dUdt_FV()");
+    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
+    {
+        BoxArray ba = grids[lev];
+        ba.surroundingNodes(idim);
+        fluxes[idim].define(ba, dmap[lev], NSTATE, 0);
+#if (NONCONSERVATIVE == true)
+        fluxes_nc[idim].define(ba, dmap[lev], NC_TERMS, 0);
+#else
+        amrex::ignore_unused(fluxes_nc);
+#endif
+    }
+}
 
 
-    //==============================================================
-    //         Everything below this point is good (I think)
-    //==============================================================
+// Face fluxes of level lev from the state U with ghost cells: in fluxes the conservative fluxes per
+// unit area (hyperbolic minus diffusive), in fluxes_nc the face quantities of the
+// non-conservative terms, and the wave speeds in c_max[lev] (reset at stage 0). time is the time of
+// the stage state. Each tile computes the faces of nodaltilebox, which no other tile has, and the
+// c_max of a cell is written only from its own faces (i,j,k), which belong to the same tile: no
+// two OpenMP threads write the same face or cell
+void
+Compressible_PhaseField::ComputeFaceFluxes (MultiFab const& U,
+                                            Array<MultiFab,AMREX_SPACEDIM>& fluxes,
+                                            Array<MultiFab,AMREX_SPACEDIM>& fluxes_nc,
+                                            int lev,
+                                            Real time,
+                                            int stage)
+{
+BL_PROFILE("ComputeFaceFluxes()");
 
     MultiFab& c_max_lev = c_max[lev];
     if (stage == 0){
         c_max_lev.setVal(0.0);
     }
-
 
     auto const prob_lo = Geom(lev).ProbLoArray();
     const Real dx = geom[lev].CellSize(0);
@@ -3207,80 +3176,54 @@ BL_PROFILE("compute_dUdt_FV()");
     const Real dz = 1.0;
 #endif
     amrex::Array<amrex::Real, AMREX_SPACEDIM> const dX = {AMREX_D_DECL(dx,dy,dz)};
-
-    // construct the fluxes
-    Array<MultiFab,AMREX_SPACEDIM> fluxes;
-#if (NONCONSERVATIVE == true)
-    Array<MultiFab,AMREX_SPACEDIM> fluxes_nc;
-#endif
-    // if (do_reflux)
-    // {
-        for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
-        {
-            BoxArray ba = grids[lev];
-            ba.surroundingNodes(idim);
-            fluxes[idim].define(ba, dmap[lev], NSTATE, 0);
-#if (NONCONSERVATIVE == true)
-            fluxes_nc[idim].define(ba, dmap[lev], NC_TERMS, 0);
-#endif
-        }
-    // }
+    amrex::ignore_unused(prob_lo, time, dy, dz);
 
     Parm const* lparm = d_parm;
 
-    const int lID_COORDSYS = ID_COORDSYS;
-
-    // time is the time of the stage state, not t_old[lev], so that a time-dependent
-    // source term is evaluated at the stage time
-
-//==================================================
-// Conservative surface integral 
-//==================================================
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
     {
-        for (MFIter mfi(mf_new,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        for (MFIter mfi(U,TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            // ======== FLUX CALC AND UPDATE =========
-            const Box& bx = mfi.tilebox();
-
             // Pull the data into an array
-            Array4<Real const> statein   = mf_old.const_array(mfi);
-            Array4<Real      > dUdt      = mf_new.array(mfi);
+            Array4<Real const> statein   = U.const_array(mfi);
             Array4<Real      > c_max_new = c_max_lev.array(mfi);
-{BL_PROFILE("compute_dUdt_FV::{ computing the fluxes }");
-            // There will also need to be some function calls before this to get the slope reconstructions
-            // final edge states
-            // ===========================
             for (int idim = 0; idim < AMREX_SPACEDIM; idim++){
                 Array4<Real> flux = fluxes[idim].array(mfi);
 #if (NONCONSERVATIVE == true)
                 Array4<Real> fluxNC = fluxes_nc[idim].array(mfi);
 #endif
-{BL_PROFILE("compute_dUdt_FV::{ idim-direction ParallelFor }");
-                //Box bx_face = mfi.nodaltilebox(idim);
-                Box bx_face = surroundingNodes(bx, idim);
+{BL_PROFILE("ComputeFaceFluxes::{ idim-direction ParallelFor }");
+                // the faces of this tile only (the high face of a box with its last tile)
+                const Box bx_face = mfi.nodaltilebox(idim);
                 amrex::ParallelFor(bx_face,
                 [=] AMREX_GPU_DEVICE (int i, int j, int k)
                 {
-{BL_PROFILE("compute_dUdt_FV::{ computing the idim-direction fluxes }");
                     Array<Real,NSTATE> fhat;
                     Array<Real,NC_TERMS> fhatNC;
                     Real cmax;
-{BL_PROFILE("compute_dUdt_FV::{ computing the idim-direction hyperbolic fluxes }");
                     FVM_Conservative2FluxHyperbolic_K(i, j, k,
                                                       fhat, fhatNC, cmax,
                                                       statein, *lparm,
                                                       dX,
                                                       idim,
                                                       lparm->FiniteVolume_Parm, lparm->Physics_Parm);
-}
                     c_max_new(i,j,k,0) = std::max(cmax, c_max_new(i,j,k,0));
 #if (DIFFUSION == true)
                     Array<Real,NSTATE> fhatD;
                     amrex::Real dmax;
-{BL_PROFILE("compute_dUdt_FV::{ computing the idim-direction parabolic fluxes }");
+#if (PHYSICS == SIXEQS)
+                    // SIXEQS also writes the viscous energy flux to a non-conservative component
+                    FDM_Conservative2FluxDiffusion_K(i, j, k,
+                                                     fhatD, fhatNC, dmax,
+                                                     statein,
+                                                     prob_lo,
+                                        AMREX_D_DECL(dx,dy,dz),
+                                                     time,
+                                                     *lparm,
+                                                     idim);
+#else
                     FDM_Conservative2FluxDiffusion_K(i, j, k,
                                                      fhatD, dmax,
                                                      statein,
@@ -3289,7 +3232,7 @@ BL_PROFILE("compute_dUdt_FV()");
                                                      time,
                                                      *lparm,
                                                      idim);
-}
+#endif
                     c_max_new(i,j,k,1) = std::max(dmax, c_max_new(i,j,k,1));
 #endif
                     for (int iState = 0; iState < NSTATE; iState++){
@@ -3303,17 +3246,65 @@ BL_PROFILE("compute_dUdt_FV()");
                         fluxNC(i,j,k,iState) = fhatNC[iState];
                     }
 #endif
-}
                 });
 }
             } // end idim
+        } // end mfi
+    } // end omp
 }
+
+
+// Right-hand side dUdt of level lev (overwritten) from the face fluxes of ComputeFaceFluxes, possibly
+// with the averaged fluxes of the finer level on the covered faces: the conservative surface
+// integral, the user source term and the non-conservative terms, which read the same face
+// MultiFabs. U is the state with ghost cells the fluxes were computed from, time its time; dt_lev
+// is passed to the user source term
+void
+Compressible_PhaseField::FluxDivergence (MultiFab& dUdt_mf,
+                                         MultiFab const& U,
+                                         Array<MultiFab,AMREX_SPACEDIM> const& fluxes,
+                                         Array<MultiFab,AMREX_SPACEDIM> const& fluxes_nc,
+                                         int lev,
+                                         Real time,
+                                         Real dt_lev)
+{
+BL_PROFILE("FluxDivergence()");
+
+    auto const prob_lo = Geom(lev).ProbLoArray();
+    const Real dx = geom[lev].CellSize(0);
+#if (AMREX_SPACEDIM > 1)
+    const Real dy = geom[lev].CellSize(1);
+#else
+    const Real dy = 1.0;
+#endif
+#if (AMREX_SPACEDIM > 2)
+    const Real dz = geom[lev].CellSize(2);
+#else
+    const Real dz = 1.0;
+#endif
+    amrex::Array<amrex::Real, AMREX_SPACEDIM> const dX = {AMREX_D_DECL(dx,dy,dz)};
+    amrex::ignore_unused(time, dt_lev, dy, dz, fluxes_nc);
+
+    Parm const* lparm = d_parm;
+
+    const int lID_COORDSYS = ID_COORDSYS;
+
+#ifdef AMREX_USE_OMP
+#pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+    {
+        for (MFIter mfi(dUdt_mf,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const Box& bx = mfi.tilebox();
+
+            Array4<Real const> statein = U.const_array(mfi);
+            Array4<Real      > dUdt    = dUdt_mf.array(mfi);
 
             AMREX_D_TERM(Array4<Real const> fluxx_c = fluxes[0].const_array(mfi);,
                          Array4<Real const> fluxy_c = fluxes[1].const_array(mfi);,
                          Array4<Real const> fluxz_c = fluxes[2].const_array(mfi));
 {BL_PROFILE("COMPAS::compute_dUdt_FV::surface_integral()");
-            // Do a conservative update 
+            // Do a conservative update
             // Forward Euler
             // ===========================
             amrex::ParallelFor(bx,
@@ -3342,7 +3333,7 @@ BL_PROFILE("compute_dUdt_FV()");
 {BL_PROFILE("COMPAS::compute_dUdt_FV::user_source_term()");
             amrex::ParallelFor(bx,
             [=] AMREX_GPU_DEVICE (int i, int j, int k)
-            {   
+            {
                 amrex::Real x = prob_lo[0] + (Real(i)+0.5)*dx;
 #if (AMREX_SPACEDIM > 1)
                 amrex::Real y = prob_lo[1] + (Real(j)+0.5)*dy;
@@ -3395,59 +3386,121 @@ BL_PROFILE("compute_dUdt_FV()");
             });
 }
 #endif
-
-            if (do_reflux)
-            {
-                for (int idim = 0; idim < AMREX_SPACEDIM; idim++){
-                    amrex::Real dArea;
-                    if (idim == 0){
-                        dArea = dy*dz;
-                    }
-                    else if (idim == 1){
-                        dArea = dx*dz;
-                    }
-                    else if (idim == 2){
-                        dArea = dx*dy;
-                    }
-
-                    Array4<Real> flux = fluxes[idim].array(mfi);
-#if (NONCONSERVATIVE == true)
-                    Array4<Real> fluxNC = fluxes_nc[idim].array(mfi);
-#endif
-                    //Box bx_face = mfi.nodaltilebox(idim);
-                    Box bx_face = surroundingNodes(bx, idim);
-                    amrex::ParallelFor(bx_face,
-                    [=] AMREX_GPU_DEVICE (int i, int j, int k)
-                    {
-                        for (int iState = 0; iState < NSTATE; iState++){
-                            flux(i,j,k,iState) *= dArea;
-                        }
-#if (NONCONSERVATIVE == true)
-                        for (int iState = 0; iState < NC_TERMS; iState++){
-                            fluxNC(i,j,k,iState) *= dArea;
-                        }
-#endif
-                    });
-                } // end idim
-            }
         } // end mfi
     } // end omp
+}
 
+
+// Abort if the wave speeds of level lev give c_max dt_lev > dx in a direction (run.check_cfl)
+void
+Compressible_PhaseField::CheckCFL (int lev, Real dt_lev)
+{
     // ======== CFL CHECK, MOVED OUTSIDE MFITER LOOP =========
 /* TODO: Make sure it is ok to not do this on the GPU/see if is actually that expensive*/
     if (check_cfl){
 #if (!AMREX_USE_GPU)
+        const Real dx = geom[lev].CellSize(0);
+#if (AMREX_SPACEDIM > 1)
+        const Real dy = geom[lev].CellSize(1);
+#else
+        const Real dy = 1.0;
+#endif
+#if (AMREX_SPACEDIM > 2)
+        const Real dz = geom[lev].CellSize(2);
+#else
+        const Real dz = 1.0;
+#endif
         Real cmax = c_max[lev].norminf(0,0,true);
 
         if (AMREX_D_TERM(cmax*dt_lev > dx, ||
                          cmax*dt_lev > dy, ||
                          cmax*dt_lev > dz))
         {
-            amrex::AllPrint() << "cmax = " << cmax 
+            amrex::AllPrint() << "cmax = " << cmax
                               << ", dt = " << dt_lev << " dx = " << dx << " " << dy << " " << dz << std::endl;
             amrex::Abort("CFL violation. use smaller adv.cfl.");
         }
+#else
+        amrex::ignore_unused(lev, dt_lev);
 #endif
+    }
+}
+
+
+// Multiply the face fluxes of level lev by the face areas, for the flux registers. On whole face
+// MultiFabs after the face and update loops: each face is multiplied once, and no tile reads a
+// face that another tile scales
+void
+Compressible_PhaseField::ScaleFaceFluxesByArea (Array<MultiFab,AMREX_SPACEDIM>& fluxes,
+                                                Array<MultiFab,AMREX_SPACEDIM>& fluxes_nc,
+                                                int lev)
+{
+    const Real dx = geom[lev].CellSize(0);
+#if (AMREX_SPACEDIM > 1)
+    const Real dy = geom[lev].CellSize(1);
+#else
+    const Real dy = 1.0;
+#endif
+#if (AMREX_SPACEDIM > 2)
+    const Real dz = geom[lev].CellSize(2);
+#else
+    const Real dz = 1.0;
+#endif
+    amrex::ignore_unused(fluxes_nc);
+    for (int idim = 0; idim < AMREX_SPACEDIM; idim++){
+        amrex::Real dArea;
+        if (idim == 0){
+            dArea = dy*dz;
+        }
+        else if (idim == 1){
+            dArea = dx*dz;
+        }
+        else {
+            dArea = dx*dy;
+        }
+        fluxes[idim].mult(dArea, 0, NSTATE, 0);
+#if (NONCONSERVATIVE == true)
+        fluxes_nc[idim].mult(dArea, 0, NC_TERMS, 0);
+#endif
+    }
+}
+
+
+// Right-hand side of one level with its own face fluxes, for the per-level integrators of the
+// subcycled time step; with do_reflux the area-weighted fluxes go to the flux registers
+// (dt_lev = stage weight times dt of the level)
+void
+Compressible_PhaseField::compute_dUdt_FV (MultiFab& mf_new,
+                                          MultiFab& mf_old,
+                                          int lev,
+                                          Real time,
+                                          Real dt_lev,
+                                          int ncycle,
+                                          int stage,
+                                          FluxRegister* fr_as_crse,
+                                          FluxRegister* fr_as_fine,
+                                          FluxRegister* fr_as_crse_nc,
+                                          FluxRegister* fr_as_fine_nc)
+{
+BL_PROFILE("compute_dUdt_FV()");
+    amrex::ignore_unused(ncycle, fr_as_crse_nc, fr_as_fine_nc);
+
+    // construct the fluxes
+    Array<MultiFab,AMREX_SPACEDIM> fluxes;
+    Array<MultiFab,AMREX_SPACEDIM> fluxes_nc;
+    DefineFaceFluxes(fluxes, fluxes_nc, lev);
+
+    // time is the time of the stage state, not t_old[lev], so that a time-dependent
+    // source term is evaluated at the stage time
+    ComputeFaceFluxes(mf_old, fluxes, fluxes_nc, lev, time, stage);
+
+    FluxDivergence(mf_new, mf_old, fluxes, fluxes_nc, lev, time, dt_lev);
+
+    CheckCFL(lev, dt_lev);
+
+    if (do_reflux)
+    {
+        ScaleFaceFluxesByArea(fluxes, fluxes_nc, lev);
     }
 
     // increment or decrement the flux registers by area and time-weighted fluxes
@@ -3954,7 +4007,7 @@ Compressible_PhaseField::ThirdOrderSSPRK (Vector<MultiFab>& mf_new,
     PreTimeStep(Uborder,ncycle,time,lev);
 
 
-    compute_dUdt_FV(dUdt,Uborder,lev, time, Real(0.166666666667)*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
+    compute_dUdt_FV(dUdt,Uborder,lev, time, (Real(1.0)/Real(6.0))*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
     
     MultiFab::LinComb(U_new, Real(1.0), Uborder, 0, dt_lev, dUdt, 0, 0, NSTATE, 0);
 
@@ -3988,7 +4041,7 @@ Compressible_PhaseField::ThirdOrderSSPRK (Vector<MultiFab>& mf_new,
               0, 0, NSTATE);
 
 
-    compute_dUdt_FV(dUdt,Uborder,lev, time+dt_lev, Real(0.166666666667)*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
+    compute_dUdt_FV(dUdt,Uborder,lev, time+dt_lev, (Real(1.0)/Real(6.0))*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
 
     MultiFab::LinComb(U_new, Real(0.25), Uborder, 0, Real(0.75), U_old, 0, 0, NSTATE, 0);
     MultiFab::Saxpy(U_new, Real(0.25)*dt_lev, dUdt, 0, 0, NSTATE, 0);
@@ -4025,10 +4078,10 @@ Compressible_PhaseField::ThirdOrderSSPRK (Vector<MultiFab>& mf_new,
                    0, 0, NSTATE);
 
 
-    compute_dUdt_FV(dUdt,Uborder,lev, time+Real(0.5)*dt_lev, Real(0.666666666667)*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
+    compute_dUdt_FV(dUdt,Uborder,lev, time+Real(0.5)*dt_lev, (Real(2.0)/Real(3.0))*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
     
-    MultiFab::LinComb(U_new, Real(0.666666666667), Uborder, 0, Real(0.333333333333), U_old, 0, 0, NSTATE, 0);
-    MultiFab::Saxpy(U_new, Real(0.666666666667)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::LinComb(U_new, (Real(2.0)/Real(3.0)), Uborder, 0, (Real(1.0)/Real(3.0)), U_old, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(2.0)/Real(3.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     if (h_parm->FiniteVolume_Parm.ID_Bound == 1){
         MinEnergyBound(min_EnergyBound,
@@ -4126,12 +4179,12 @@ Compressible_PhaseField::FourthOrderRK (Vector<MultiFab>& mf_new,
 
     PreTimeStep(Uborder,ncycle,time,lev);
 
-    compute_dUdt_FV(dUdt,Uborder,lev, time, Real(0.166666666667)*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
+    compute_dUdt_FV(dUdt,Uborder,lev, time, (Real(1.0)/Real(6.0))*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
 
     /* u_1 = u_n + 1/2 dt R(u_n) */
     MultiFab::LinComb(U_temp, Real(1.0), Uborder, 0, Real(0.5)*dt_lev, 			  dUdt, 0, 0, NSTATE, 0);
     /* u_* = u_n + 1/6 dt R(u_n) */
-    MultiFab::LinComb(U_new,  Real(1.0), Uborder, 0, Real(0.166666666667)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::LinComb(U_new,  Real(1.0), Uborder, 0, (Real(1.0)/Real(6.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     if (h_parm->FiniteVolume_Parm.ID_Bound == 1){
         MinEnergyBound(min_EnergyBound,
@@ -4166,12 +4219,12 @@ Compressible_PhaseField::FourthOrderRK (Vector<MultiFab>& mf_new,
                    mf_old, t_old,
                    0, 0, NSTATE);
 
-    compute_dUdt_FV(dUdt,Uborder,lev, time+Real(0.5)*dt_lev, Real(0.333333333333)*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
+    compute_dUdt_FV(dUdt,Uborder,lev, time+Real(0.5)*dt_lev, (Real(1.0)/Real(3.0))*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
 
     /* u_2 = u_n + 1/2 dt R(u_1) */
     MultiFab::LinComb(U_temp, Real(1.0), U_old, 0, Real(0.5)*dt_lev, dUdt, 0, 0, NSTATE, 0);
     /* u_** = u_* + 1/3 dt R(u_1) */
-    MultiFab::Saxpy(U_new, Real(0.333333333333)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(1.0)/Real(3.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     if (h_parm->FiniteVolume_Parm.ID_Bound == 1){
         MinEnergyBound(min_EnergyBound,
@@ -4206,12 +4259,12 @@ Compressible_PhaseField::FourthOrderRK (Vector<MultiFab>& mf_new,
                    mf_old, t_old,
                    0, 0, NSTATE);
 
-    compute_dUdt_FV(dUdt,Uborder,lev, time+Real(0.5)*dt_lev, Real(0.333333333333)*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
+    compute_dUdt_FV(dUdt,Uborder,lev, time+Real(0.5)*dt_lev, (Real(1.0)/Real(3.0))*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
 
     /* u_3 = u_n + dt R(u_2) */
     MultiFab::LinComb(U_temp, Real(1.0), U_old, 0, Real(1.0)*dt_lev, dUdt, 0, 0, NSTATE, 0);
     /* u_*** = u_** + 1/3 dt R(u_2) */
-    MultiFab::Saxpy(U_new, Real(0.333333333333)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(1.0)/Real(3.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     if (h_parm->FiniteVolume_Parm.ID_Bound == 1){
         MinEnergyBound(min_EnergyBound,
@@ -4246,10 +4299,10 @@ Compressible_PhaseField::FourthOrderRK (Vector<MultiFab>& mf_new,
                    mf_old, t_old,
                    0, 0, NSTATE);
 
-    compute_dUdt_FV(dUdt,Uborder,lev, time+dt_lev, Real(0.166666666667)*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
+    compute_dUdt_FV(dUdt,Uborder,lev, time+dt_lev, (Real(1.0)/Real(6.0))*dt_lev, ncycle, stage, fr_as_crse, fr_as_fine, fr_as_crse_nc, fr_as_fine_nc);
 
     /* u_n+1 = u_*** + 1/6 dt R(u_3) */
-    MultiFab::Saxpy(U_new, Real(0.166666666667)*dt_lev, dUdt, 0, 0, NSTATE, 0);
+    MultiFab::Saxpy(U_new, (Real(1.0)/Real(6.0))*dt_lev, dUdt, 0, 0, NSTATE, 0);
 
     if (h_parm->FiniteVolume_Parm.ID_Bound == 1){
         MinEnergyBound(min_EnergyBound,
@@ -4338,13 +4391,11 @@ Compressible_PhaseField::timeStepWithSubcycling (Vector<MultiFab>& mf_new,
                         last_regrid_step[k] = istep[k];
                     }
 
-                    // if there are newly created levels, set the time step
+                    // if there are newly created levels, set the time step. A level takes nsubsteps[k]
+                    // steps per step of level k-1 (as in ComputeDt), so dt[k] = dt[k-1]/nsubsteps[k]
+                    // brings it to the end time of level k-1 (a smaller dt would leave it behind)
                     for (int k = old_finest+1; k <= finest_level; ++k) {
-#if (ADVECTION == true && DIFFUSION == true)
-                        dt[k] = dt[k-1] / (MaxRefRatio(k-1)*MaxRefRatio(k-1));
-#else
-                        dt[k] = dt[k-1] / MaxRefRatio(k-1);
-#endif
+                        dt[k] = dt[k-1] / nsubsteps[k];
                     }
                 }
             }
@@ -4493,9 +4544,12 @@ Compressible_PhaseField::CalculateInitialcmax (int lev)
             // Pull the data into an array
             Array4<Real const> statein   = Sborder.const_array(mfi);
             Array4<Real      > c_max_new = c_max_lev.array(mfi);
+            amrex::ignore_unused(bx);
 
             for (int idim = 0; idim < AMREX_SPACEDIM; idim++){
-                Box bx_face = surroundingNodes(bx, idim);
+                // the faces of this tile only: c_max(i,j,k) is written from the faces (i,j,k),
+                // which are in the tile of cell (i,j,k), so no two OpenMP threads write one cell
+                const Box bx_face = mfi.nodaltilebox(idim);
                 amrex::ParallelFor(bx_face,
                 [=] AMREX_GPU_DEVICE (int i, int j, int k)
                 {
@@ -4516,6 +4570,16 @@ Compressible_PhaseField::CalculateInitialcmax (int lev)
                     Array<Real,NSTATE> fhatD;
                     amrex::Real dmax;
 {BL_PROFILE("compute_dUdt_FV::{ computing the idim-direction parabolic fluxes }");
+#if (PHYSICS == SIXEQS)
+                    FDM_Conservative2FluxDiffusion_K(i, j, k,
+                                                     fhatD, fhatNC, dmax,
+                                                     statein,
+                                                     prob_lo,
+                                        AMREX_D_DECL(dx,dy,dz),
+                                                     time,
+                                                     *lparm,
+                                                     idim);
+#else
                     FDM_Conservative2FluxDiffusion_K(i, j, k,
                                                      fhatD, dmax,
                                                      statein,
@@ -4524,6 +4588,7 @@ Compressible_PhaseField::CalculateInitialcmax (int lev)
                                                      time,
                                                      *lparm,
                                                      idim);
+#endif
 }
                     c_max_new(i,j,k,1) = std::max(dmax, c_max_new(i,j,k,1));
 #endif

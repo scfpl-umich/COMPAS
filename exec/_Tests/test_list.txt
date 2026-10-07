@@ -1,20 +1,43 @@
 # Cases run by scripts/test_cases.sh, in this order. Any case directory in exec/_Tests
-# that is not listed here also runs, after these, with a warning. Run-time variants of a
-# case (schemes, Riemann solvers, Phase-Field mechanisms, ...) are in <case>/variants.txt.
+# that is not listed here also runs, after these, with a warning. A directory may hold several
+# builds (one per model, BUILD in its GNUmakefile) and several base runs, the "[LABEL] ..."
+# lines of its variants.txt; the labels are the names the runs had as separate cases. Run-time
+# variants of a base run (schemes, Riemann solvers, Phase-Field mechanisms, ...) are the lines
+# below its label.
 
-# --- One advection test per model, each with the method variants for that model ---
-Advection-5Eq
-Advection-5Eq-N
-Advection-6Eq
-Advection-6Eq-N
+# --- One advection test per model, each with the method variants for that model; and the four
+# shapes with THINC and with Phase-Field, to try each out of the box. Builds 5Eq, 5Eq-N, 6Eq,
+# 6Eq-N: Advection-5Eq, -5Eq-N, -6Eq, -6Eq-N; Advection-THINC-5Eq and Advection-PF-5Eq are
+# inputs files on the 5Eq build ---
+Advection
 
-# --- Viscous and conductive fluxes for the N-phase five-equation model ---
-# (the 5Eq cases below cover the two-phase model; the six-equation models have no diffusion yet)
-Advection-Viscous-5Eq-N
+# --- Viscous and conductive fluxes (DIFFUSION = true): two-layer Couette flow and conduction
+# between two materials (across a material interface), the viscous shock tube, and viscous
+# advection (a drop, with an absent third phase in the N-phase model, and five materials).
+# Builds 5Eq, 5Eq-N, 6Eq, 6Eq-N, 6Eq-N3; prob.problem in each inputs file picks the problem ---
+Diffusion
 
-# --- Advection-5Eq with THINC and with Phase-Field, to try each out of the box ---
-Advection-THINC-5Eq
-Advection-PF-5Eq
+# --- 3D Sod shock tube with AMR and outflow boundaries, one per model (builds 5Eq, 5Eq-N, 6Eq,
+# 6Eq-N); variants run it along y and z, with walls, and the two-material water-air shock tube ---
+Sod
+
+# --- Noble-Abel stiffened-gas EOS (prob.EOS.EOS = 3), one per model (builds 5Eq, 5Eq-N, 6Eq,
+# 6Eq-N): water-air and water shock tubes, a water drop at uniform pressure and velocity, and
+# b = q = 0 against the stiffened gas ---
+NASG
+
+# --- Shu-Osher shock tube with AMR, one model; variants compare the reconstruction schemes ---
+ShuOsher-5Eq
+
+# --- High-order WENO5 via quadrature ---
+ShockVortex-5Eq
+
+# --- Convergence case with python tool ---
+IsentropicVortex-5Eq
+
+# --- Six-equation relaxations: 40 hard states per model (builds 6Eq, 6Eq-N with NPHASE = 3),
+# relaxed once (conservation, passive phases keeping their volume fraction, sum of the volume
+# fractions, pressure equality, iterations) and stepped, for each equation of state ---
 
 # --- STL reader test ---
 COMPAS-STL-5Eq
@@ -22,35 +45,14 @@ COMPAS-STL-5Eq
 # --- User output test, plus checkpoint and restart ---
 RichtmyerMeshkov-5Eq
 
-# --- User source term test ---
-RayleighTaylor-5Eq
+# --- Runtime allocation of static GPU arrays ---
+RichtmyerMeshkov-Multimode-5Eq
 
-# --- 3D test ---
-RayleighTaylor-3D-5Eq
+# --- User source term test, in 2D and 3D (builds 2D, 3D: BUILD sets DIM) ---
+RayleighTaylor
 
 # --- User boundary conditions test ---
 Jet-Inflow-5Eq
 
 # --- User spatio-temporal refinement tagging, 3D six-equation, no subcycling ---
 NonsphericalCollapse-6Eq
-
-# --- Runtime allocation of static GPU arrays ---
-RichtmyerMeshkov-Multimode-5Eq
-
-# --- High-order WENO5 via quadrature ---
-ShockVortex-5Eq
-
-# --- High-order WENO5 with viscosity and no-slip wall ---
-ViscousShockTube-5Eq
-
-# --- Convergence case with python tool ---
-IsentropicVortex-5Eq
-
-# --- 3D Sod shock tube with AMR and outflow boundaries, one per model; variants run it along y and z ---
-Sod-5Eq
-Sod-5Eq-N
-Sod-6Eq
-Sod-6Eq-N
-
-# --- Shu-Osher shock tube with AMR, one model; variants compare the reconstruction schemes ---
-ShuOsher-5Eq

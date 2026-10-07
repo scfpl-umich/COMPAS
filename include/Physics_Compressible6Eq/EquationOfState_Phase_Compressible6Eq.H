@@ -25,12 +25,14 @@ void EquationOfState_Phase(amrex::Real& Output,
     amrex::Real EOS_BP;
     amrex::Real EOS_CT;
     amrex::Real EOS_D;
+    amrex::Real EOS_b = 0.0;
     //Phase 1
     if (ID_Phase == 1){
         EOS_AP = EOS_Parameter.A1;
         EOS_BP = EOS_Parameter.B1;
         EOS_CT = EOS_Parameter.cv_1;
         EOS_D  = EOS_Parameter.D1;
+        EOS_b  = EOS_Parameter.C1;
     }
     //Phase 2
     else if (ID_Phase == 2){
@@ -38,29 +40,34 @@ void EquationOfState_Phase(amrex::Real& Output,
         EOS_BP = EOS_Parameter.B2;
         EOS_CT = EOS_Parameter.cv_2;
         EOS_D  = EOS_Parameter.D2;
+        EOS_b  = EOS_Parameter.C2;
     }
     amrex::Real EOS_BT = EOS_BP/(1.0 + EOS_AP);
+    // NASG: alpha rho e = A xi (alpha p) + phi B + alpha rho q, with xi = 1 - b rho and phi = xi alpha
+    // (xi = 1 and phi = alpha exactly when b = 0)
+    amrex::Real Xi  = NASG_Xi(Alpha, Alpha_rho, EOS_b);
+    amrex::Real Phi = Xi*Alpha;
     
     //Pressure-Based EOS
     if (PressureBase){
         //From Alpha_p to Alpha_rho_e
         if (OutputInternalEnergy){
-            Output = EOS_AP*Input + Alpha*EOS_BP + Alpha_rho*EOS_D;
+            Output = EOS_AP*Xi*Input + Phi*EOS_BP + Alpha_rho*EOS_D;
         }
         //From Alpha_rho_e to Alpha_p
         else{
-            Output = (Input - Alpha_rho*EOS_D - Alpha*EOS_BP)/EOS_AP;
+            Output = (Input - Alpha_rho*EOS_D - Phi*EOS_BP)/(EOS_AP*Xi);
         }
     }
     //Temperature-Based EOS
     else{
         //From Alpha_rho_T to Alpha_rho_e
         if (OutputInternalEnergy){
-            Output = EOS_CT*Input + Alpha*EOS_BT + Alpha_rho*EOS_D;
+            Output = EOS_CT*Input + Phi*EOS_BT + Alpha_rho*EOS_D;
         }
         //From Alpha_rho_e to Alpha_rho_T
         else{
-           Output = (Input - Alpha_rho*EOS_D - Alpha*EOS_BT)/EOS_CT;
+           Output = (Input - Alpha_rho*EOS_D - Phi*EOS_BT)/EOS_CT;
         }
     }
     

@@ -7,6 +7,7 @@
 #ifndef Physics_Compressible5Eq_H_
 #define Physics_Compressible5Eq_H_
 
+#include<EquationOfState_NASG.H>
 #include<Variables_Compressible5Eq.H>
 #include<Physics_Parameter_Compressible5Eq.H>
 
@@ -52,7 +53,6 @@
 #include<Riemann_HLL_Bound_Compressible5Eq.H>
 #include<Conservative2K_Compressible5Eq.H>
 
-#include<RefluxSourceTerms_Compressible5Eq.H>
 #include<AnalyticNonConservativeFlux_Compressible5Eq.H>
 
 #endif
