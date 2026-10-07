@@ -119,6 +119,9 @@ public:
     // initializes multilevel data
     void InitData ();
 
+    // Called by InitData after the initial condition of a fresh start (not on a restart)
+    virtual void PostInitFromScratch (){};
+
     // Make a new level using provided BoxArray and DistributionMapping and
     // fill with interpolated coarse level data.
     // overrides the pure virtual function in AmrCore

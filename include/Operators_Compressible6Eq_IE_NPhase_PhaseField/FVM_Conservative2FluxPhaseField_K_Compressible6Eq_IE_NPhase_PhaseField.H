@@ -58,6 +58,11 @@ void FVM_Conservative2FluxPhaseField_K(int i, int j, int k,
                    ID_FluxPhase2Flux,
                    ID_BE
                 );
+
+    // The Phase-Field step has no non-conservative face terms in this model
+    for (int iState = 0; iState < NC_TERMS; iState++){
+        FluxNC[iState] = 0.0;
+    }
     
 }
 

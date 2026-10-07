@@ -80,7 +80,16 @@ using namespace amrex;
 #ifndef NONCONSERVATIVE
 #define NONCONSERVATIVE (true)
 #endif
+#ifndef SURFACE_TENSION
+#define SURFACE_TENSION (false)
+#endif
+// Non-conservative face component 0 holds u_n. With SURFACE_TENSION, the last AMREX_SPACEDIM
+// components hold the capillary stress T.e_d (SurfaceTension_Parameter.H)
+#if (SURFACE_TENSION == true)
+#define NC_TERMS (1 + AMREX_SPACEDIM)
+#else
 #define NC_TERMS 1
+#endif
 
 #endif
 
@@ -102,7 +111,16 @@ using namespace amrex;
 #ifndef NONCONSERVATIVE
 #define NONCONSERVATIVE (true)
 #endif
+#ifndef SURFACE_TENSION
+#define SURFACE_TENSION (false)
+#endif
+// Non-conservative face component 0 holds u_n. With SURFACE_TENSION, the last AMREX_SPACEDIM
+// components hold the capillary stress T.e_d (SurfaceTension_Parameter.H)
+#if (SURFACE_TENSION == true)
+#define NC_TERMS (1 + AMREX_SPACEDIM)
+#else
 #define NC_TERMS 1
+#endif
 
 #endif
 
@@ -121,11 +139,20 @@ using namespace amrex;
 #ifndef NONCONSERVATIVE
 #define NONCONSERVATIVE (true)
 #endif
+#ifndef SURFACE_TENSION
+#define SURFACE_TENSION (false)
+#endif
 // Non-conservative face components 0 to 3: u_n, (u alpha1 p1)_n, (u alpha2 p2)_n and 0 in the
 // hyperbolic step, and J1 rho1, J2 rho2, J1 rho1 EK, J2 rho2 EK in the Phase-Field step. With
-// DIFFUSION, component 4 (INDEX_NC_ViscousWork) holds the viscous energy flux (u.tau)_n.
-#if (DIFFUSION == true)
+// DIFFUSION, component 4 (INDEX_NC_ViscousWork) holds the viscous energy flux (u.tau)_n. With
+// SURFACE_TENSION, the last AMREX_SPACEDIM + 1 components hold the capillary stress T.e_d and the
+// capillary energy flux (u.T)_n (SurfaceTension_Parameter.H).
+#if (DIFFUSION == true) && (SURFACE_TENSION == true)
+#define NC_TERMS (6 + AMREX_SPACEDIM)
+#elif (DIFFUSION == true)
 #define NC_TERMS 5
+#elif (SURFACE_TENSION == true)
+#define NC_TERMS (5 + AMREX_SPACEDIM)
 #else
 #define NC_TERMS 4
 #endif
@@ -149,7 +176,16 @@ using namespace amrex;
 #ifndef NONCONSERVATIVE
 #define NONCONSERVATIVE (true)
 #endif
+#ifndef SURFACE_TENSION
+#define SURFACE_TENSION (false)
+#endif
+// Non-conservative face component 0 holds u_n. With SURFACE_TENSION, the last AMREX_SPACEDIM
+// components hold the capillary stress T.e_d (SurfaceTension_Parameter.H)
+#if (SURFACE_TENSION == true)
+#define NC_TERMS (1 + AMREX_SPACEDIM)
+#else
 #define NC_TERMS 1
+#endif
 
 #endif
 

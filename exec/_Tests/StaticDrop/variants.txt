@@ -1,0 +1,89 @@
+# Runs of the StaticDrop case, by scripts/test_cases.sh and test_cases.py. A line "[LABEL] ARGS"
+# starts the base run LABEL, built with "make ARGS" and run with "<exe> FILE" for inputs=FILE in
+# ARGS; the variant lines below it (a name and ParmParse overrides appended to that command
+# line) use the same executable. The labels are the names the runs had as separate cases.
+# Sections with the same BUILD share one build.
+
+[StaticDrop-5Eq]    BUILD=5Eq     inputs=prob/inputs
+# The base inputs use the two-phase five-equation model with SURFACE_TENSION = true and DIFFUSION = true,
+# MUSCL-MC, HLLC, one level, the work energy form, two smoothing passes and the Laplace jump in the
+# initial pressure.
+
+# --- Initial pressure projection (uniform initial pressure, then projected) ---
+init-pressure           max_step=10 prob.Laplace_IC=0 SurfaceTension.init_pressure=1
+
+# --- Energy form ---
+conservative            max_step=10 SurfaceTension.energy_form=conservative
+
+# --- Interface treatment ---
+pf-acdi                 max_step=10 PhaseField.phase_field=1
+thinc                   max_step=10 FiniteVolume.THINC=1
+
+# --- Stress of the unsmoothed volume fractions ---
+no-smoothing            max_step=10 SurfaceTension.smoothing=0
+
+# --- AMR (three levels, subcycling, reflux) with the projection on the composite grid ---
+amr                     max_step=10 amr.max_level=2 prob.Laplace_IC=0 SurfaceTension.init_pressure=1
+
+[StaticDrop-5Eq-N]  BUILD=5Eq-N   inputs=prob/inputs.StaticDrop-5Eq-N
+# The base inputs use the N-phase five-equation model (NPHASE = 3, phase 3 absent) with SURFACE_TENSION = true and DIFFUSION = true,
+# MUSCL-MC, HLLC, one level, the work energy form, two smoothing passes and the Laplace jump in the
+# initial pressure.
+
+# --- Initial pressure projection (uniform initial pressure, then projected) ---
+init-pressure           max_step=10 prob.Laplace_IC=0 SurfaceTension.init_pressure=1
+
+# --- Energy form ---
+conservative            max_step=10 SurfaceTension.energy_form=conservative
+
+# --- Interface treatment ---
+pf-acdi                 max_step=10 PhaseField.phase_field=1
+thinc                   max_step=10 FiniteVolume.THINC=1
+
+# --- Stress of the unsmoothed volume fractions ---
+no-smoothing            max_step=10 SurfaceTension.smoothing=0
+
+# --- AMR (three levels, subcycling, reflux) with the projection on the composite grid ---
+amr                     max_step=10 amr.max_level=2 prob.Laplace_IC=0 SurfaceTension.init_pressure=1
+
+[StaticDrop-6Eq]    BUILD=6Eq     inputs=prob/inputs.StaticDrop-6Eq
+# The base inputs use the two-phase six-equation model with SURFACE_TENSION = true and DIFFUSION = true,
+# MUSCL-MC, HLLC, one level, the work energy form, two smoothing passes and the Laplace jump in the
+# initial pressure.
+
+# --- Initial pressure projection (uniform initial pressure, then projected) ---
+init-pressure           max_step=10 prob.Laplace_IC=0 SurfaceTension.init_pressure=1
+
+# --- Energy form ---
+conservative            max_step=10 SurfaceTension.energy_form=conservative
+
+# --- Interface treatment ---
+pf-acdi                 max_step=10 PhaseField.phase_field=1
+thinc                   max_step=10 FiniteVolume.THINC=1
+
+# --- Stress of the unsmoothed volume fractions ---
+no-smoothing            max_step=10 SurfaceTension.smoothing=0
+
+# --- AMR (three levels, subcycling, reflux) with the projection on the composite grid ---
+amr                     max_step=10 amr.max_level=2 prob.Laplace_IC=0 SurfaceTension.init_pressure=1
+
+[StaticDrop-6Eq-N]  BUILD=6Eq-N   inputs=prob/inputs.StaticDrop-6Eq-N
+# The base inputs use the N-phase six-equation model (NPHASE = 3, phase 3 absent) with SURFACE_TENSION = true and DIFFUSION = true,
+# MUSCL-MC, HLLC, one level, the work energy form, two smoothing passes and the Laplace jump in the
+# initial pressure.
+
+# --- Initial pressure projection (uniform initial pressure, then projected) ---
+init-pressure           max_step=10 prob.Laplace_IC=0 SurfaceTension.init_pressure=1
+
+# --- Energy form ---
+conservative            max_step=10 SurfaceTension.energy_form=conservative
+
+# --- Interface treatment ---
+pf-acdi                 max_step=10 PhaseField.phase_field=1
+thinc                   max_step=10 FiniteVolume.THINC=1
+
+# --- Stress of the unsmoothed volume fractions ---
+no-smoothing            max_step=10 SurfaceTension.smoothing=0
+
+# --- AMR (three levels, subcycling, reflux) with the projection on the composite grid ---
+amr                     max_step=10 amr.max_level=2 prob.Laplace_IC=0 SurfaceTension.init_pressure=1

@@ -9,6 +9,9 @@
 
 #include<AMReX_ParmParse.H>
 #include<Macros.H>
+#if (SURFACE_TENSION == true)
+#include<SurfaceTension_Parameter.H>
+#endif
 #if (PHYSICS==SIXEQS_IE_NPHASE)
 
 enum class Riemann : int {
@@ -27,6 +30,10 @@ struct Physics_Parameter
     Riemann RiemannSolver = Riemann::HLLC;
     int ID_Riemann = 2;
 
+#if (SURFACE_TENSION == true)
+    SurfaceTension_Parameter SurfaceTension_Parm;
+#endif
+
     //Read parameters from the inputs file
     void Initialize ()
     {
@@ -36,6 +43,10 @@ struct Physics_Parameter
         if (pressure_relaxation_trace < 0.0 || pressure_relaxation_trace >= 1.0){
             amrex::Abort("Physics.pressure_relaxation_trace must be in [0, 1).");
         }
+
+#if (SURFACE_TENSION == true)
+        SurfaceTension_Parm.Initialize();
+#endif
     };
 };
 

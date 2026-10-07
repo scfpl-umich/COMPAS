@@ -60,7 +60,9 @@ Where to refine is set under [Refinement](#refinement).
 From level 2 up, the ghost cells of a patch are filled from the next coarser level, which covers
 only part of the domain. That level must extend $R = \lceil N_g/r\rceil + g$ of its own cells past
 the patch. $N_g$ is the number of ghost cells of the scheme: 1 for `GODUNOV`, 2 for the MUSCL
-schemes, `WENO3` and `WENO3B`, and 3 for `WENO5` and `WENO5B`. $r$ is the refinement ratio, and $g$
+schemes, `WENO3` and `WENO3B`, and 3 for `WENO5` and `WENO5B`; with surface tension
+(`SurfaceTension.sigma` not 0) it is at least `1 + SurfaceTension.smoothing`, 3 with the default
+smoothing. $r$ is the refinement ratio, and $g$
 is 0 for `pc_interp`, 1 for `lincc_interp` and 2 for `quartic_interp`. The Phase-Field step always
 uses `lincc_interp` for its own ghost cells. AMReX keeps a margin of $a\lceil n_p/a\rceil$ cells,
 where $a$ is the blocking factor of the finer level divided by $r$ and $n_p$ is `amr.n_proper`
@@ -92,7 +94,7 @@ replaces the coarse fluxes at the coarse–fine faces by the time average of the
 Runge–Kutta stage together: each level fills its ghost cells from the stage state (the
 coarse–fine ghost cells by spatial interpolation of the coarser level's stage state), each level
 computes its face fluxes, the coarse faces covered by a finer level take the area-weighted average
-of its face fluxes (the conservative fluxes with their viscous parts, and the face
+of its face fluxes (the conservative fluxes with their viscous and capillary parts, and the face
 quantities of the non-conservative terms, so that both use the same faces; the same in the
 Phase-Field step), and then every level is updated, relaxed (six-equation models) and averaged
 down. The update is then conservative at every stage, with no reflux, and it keeps the volume
@@ -260,6 +262,25 @@ In `SIXEQS` and `SIXEQS_IE_NPHASE` the bounds on $\alpha_k$ and $\alpha_k\rho_k$
 | `Physics.pressure_relaxation_trace` | **`0`**, or a volume fraction in $[0, 1)$: a phase with $0 < \alpha_k \le$ this value keeps its volume fraction in the pressure relaxation and reaches the common pressure through its energy ([safeguarded relaxation](models.md#safeguarded-pressure-relaxation); six-equation models). The closed form of the `SIXEQS` pressure-temperature relaxation does not use it, only its fallback to the pressure relaxation |
 
 What these terms do is on [Models and equations](models.md).
+
+## Surface tension
+
+Read only by a build with `-DSURFACE_TENSION=true` ([Compile-time options](compile-options.md)).
+
+| Parameter | Values |
+|---|---|
+| `SurfaceTension.sigma` | two-phase models: $\sigma_{12}$. N-phase models: the $N(N-1)/2$ pairwise coefficients, ordered $(1,2), (1,3), \dots, (1,N), (2,3), \dots, (N-1,N)$ (**`0`**) |
+| `SurfaceTension.energy_form` | **`work`**: the energy gets the work of the capillary force. `conservative`: a conservative energy flux |
+| `SurfaceTension.init_pressure` | **`0`**, `1`: project the initial pressure onto the discrete capillary force (fresh starts only) |
+| `SurfaceTension.init_pressure_weight` | **`density`**: weight $\beta = 1/\rho$ of the projection. `unit`: $\beta = 1$ |
+| `SurfaceTension.smoothing` | passes of the 1-2-1 filter applied to the volume fractions before the capillary stress is computed, `0` to `4` (**`2`**). The run then has at least `1 + smoothing` ghost cells, which counts for the AMR blocking factor ([Grid and AMR](#grid-and-amr)) |
+
+The two energy forms, the smoothing, the capillary time step and the projection are described
+under [Surface tension](models.md#surface-tension). The projection uses the `LinearSystem` tolerances
+with at most 1000 multigrid iterations, and stops the run if they are not met. A run stops with a
+message if `SurfaceTension.sigma` has the wrong number of values or a negative one, if four or more
+phases have pairwise coefficients that are not of the form $\sigma_k + \sigma_l$, if a value of the
+other keys is not recognized or out of range, and with `geometry.coord_sys` other than 0.
 
 ## Phase-Field
 

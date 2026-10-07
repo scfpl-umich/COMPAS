@@ -27,6 +27,20 @@ First public release.
   N-phase models (default 0), so no case file changes. With `b = q = 0` it reproduces the
   stiffened gas. A state with $1 - b_k\rho_k \le 0$ stops the run. New test cases `NASG-5Eq`,
   `NASG-5Eq-N`, `NASG-6Eq`, `NASG-6Eq-N`, and `eos-nasg-b0` variants of the `Advection-*` cases.
+- Surface tension for all four models, built with `-DSURFACE_TENSION=true` (default `false`,
+  which leaves the code unchanged). The capillary stress
+  $\sum_k\sigma_k(\lvert\nabla\alpha_k\rvert\mathbb{I} - \nabla\alpha_k\otimes\nabla\alpha_k/\lvert\nabla\alpha_k\rvert)$
+  is a conservative momentum face flux, refluxed across AMR levels, computed from the volume
+  fractions smoothed by a 1-2-1 filter (`SurfaceTension.smoothing`). The energy gets either the
+  work of the capillary force (`SurfaceTension.energy_form = work`, the default) or a conservative
+  energy flux (`conservative`). The capillary time step limit is applied, and
+  `SurfaceTension.init_pressure = 1` projects the initial pressure onto the discrete capillary
+  force. New keys `SurfaceTension.sigma` (pairwise coefficients for the N-phase models),
+  `energy_form`, `init_pressure`, `init_pressure_weight` and `smoothing`, read by the models'
+  physics parameters, so no case file changes. See [Surface tension](docs/user-guide/models.md#surface-tension).
+  New test cases `StaticDrop-5Eq`, `StaticDrop-5Eq-N`, `StaticDrop-6Eq` and `StaticDrop-6Eq-N`.
+  Experimental: the spurious currents grow as the grid is refined, and with AMR the whole
+  interface must stay on one level (see the user guide).
 - Test cases (labels of the `Diffusion` directory, see "Changed") `ViscousShockTube-6Eq`,
   `ViscousShockTube-6Eq-N`, `Advection-Viscous-6Eq` and `Advection-Viscous-6Eq-N`, and the
   material-interface tests
@@ -43,7 +57,7 @@ First public release.
 ### Changed
 
 - Test suite (`exec/_Tests`): one directory per problem family. `Advection`, `Diffusion`, `Sod`,
-  `NASG` and `RayleighTaylor` hold several builds each, one per model
+  `NASG`, `StaticDrop` and `RayleighTaylor` hold several builds each, one per model
   (one per dimension in `RayleighTaylor`), chosen by `BUILD` in the directory's `GNUmakefile`, and
   one `prob/` with `#if (PHYSICS == ...)` where the models differ; in `Diffusion`, `prob.problem`
   in the inputs file picks the problem. The default build of a directory keeps the plain
@@ -63,11 +77,11 @@ First public release.
   `scripts/test_cases.sh` and `scripts/test_cases.py` build each build of a directory once and
   refuse two builds that would write the same executable; a directory without sections runs as
   before.
-  The suite has 13 directories, 27 builds, 36 base runs and 247 runs.
+  The suite has 14 directories, 31 builds, 40 base runs and 275 runs.
 - AMR without subcycling (`run.do_subcycle = 0`): the levels now take every Runge-Kutta stage
   together, and with `run.do_reflux = 1` the coarse faces covered by a finer level take, at every
   stage and before any level is updated, the area-weighted average of its face fluxes: the
-  conservative fluxes with their viscous parts, the face quantities of the
+  conservative fluxes with their viscous and capillary parts, the face quantities of the
   non-conservative terms, and in the Phase-Field step its fluxes. The update is conservative at
   every stage, with no reflux after the step, and the volume fraction stays within $[0, 1]$ at a
   sharp interface that crosses a coarse-fine boundary, also with `TVD-RK2`, `TVD-RK3` and `RK4`.
@@ -82,7 +96,8 @@ First public release.
   another thread had scaled it, and two threads could update the largest wave speed of a cell at
   once, so results depended on the thread timing. Several threads now give the same results as
   one, and builds without OpenMP are unchanged. Runs with an AMReX linear solve (the implicit
-  Phase-Field step, `PhaseField.ID_ExplicitRC = 0`)
+  Phase-Field step, `PhaseField.ID_ExplicitRC = 0`,
+  and `SurfaceTension.init_pressure = 1`)
   still depend on the number of threads through the order of AMReX's sums, unless
   `amrex.regtest_reduction = 1`.
 - `IsentropicVortex-5Eq` and other cases with `CONVERGENCE` did not compile with
@@ -111,6 +126,9 @@ First public release.
   a stable form, and with the Noble-Abel stiffened gas the closed form is used only where every
   phase with mass stays below its covolume limit (otherwise the pressure relaxation). Runs with
   this relaxation change by round-off, and more where the closed form had lost its digits.
+- `SIXEQS_IE_NPHASE`: the Phase-Field flux kernel left its non-conservative face components
+  uninitialized. They were never used, so results are unchanged; the kernel now sets them to 0,
+  as the other models do.
 - `SIXEQS_IE_NPHASE`, `Physics.pressure_relaxation = 1`: the reset of the phase internal
   energies after the relaxation left out the term $\alpha_k\rho_kD_k$ of the equation of state,
   so with Mie-Grüneisen and `eref` not zero the phase pressures were not equal afterwards. The

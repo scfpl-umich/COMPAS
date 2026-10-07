@@ -165,6 +165,31 @@ public:
 
     void EstTimeStep (Real& dt_est, int lev, Real const& time) override;
 
+    void PostInitFromScratch () override;
+
+    // =============================================================================================
+    // Surface tension (SURFACE_TENSION = true; Class_Compressible_PhaseField_SurfaceTension.cpp)
+    // =============================================================================================
+
+    // Capillary time step of a level, sqrt(rho_bar h^3/(2 pi sigma_max))
+    amrex::Real SurfaceTension_EstTimeStep (int lev);
+
+    // Capillary energy of the momentum reflux (energy_form = work) and the SIXEQS phase share of
+    // the energy reflux, from the NC flux register; state_before is the state before the reflux
+    void SurfaceTension_RefluxSourceTerms (amrex::MultiFab & new_dof,
+                                           amrex::MultiFab const & state_before,
+                                           int lev,
+                                           amrex::Vector<std::unique_ptr<amrex::FluxRegister>> & fr);
+
+    // Initial pressure projection onto the discrete capillary force (SurfaceTension.init_pressure = 1)
+    void SurfaceTension_InitialPressure ();
+
+    // Volume fractions of the capillary stress on the cells grown by ngrow: the stored ones of U,
+    // smoothed SurfaceTension.smoothing times (U needs ngrow + smoothing ghost cells)
+    void SurfaceTension_VolumeFractions (amrex::MultiFab const & U,
+                                         amrex::MultiFab & Alpha,
+                                         int ngrow);
+
     virtual
     void MinEnergyBound (amrex::Real & min_EnergyBound,
                          amrex::MultiFab const& Conservative,

@@ -329,6 +329,10 @@ mpirun -n 4 ./main3d.gnu.MPI.6Eq.ex prob/inputs.Sod-6Eq
 | `ShuOsher-5Eq` | `ShuOsher-5Eq` | `FIVEEQS` | 2 | [Shu-Osher](verification.md#shu-osher-problem) shock-entropy wave interaction with AMR; variants compare the reconstruction schemes |
 | `ShockVortex-5Eq` | `ShockVortex-5Eq` | `FIVEEQS` | 2 | Vortex through a stationary shock; quadrature WENO5 with AMR |
 | `IsentropicVortex-5Eq` | `IsentropicVortex-5Eq` | `FIVEEQS` | 2 | Isentropic vortex over one period; WENO5; the [order-of-accuracy](verification.md#order-of-accuracy) case |
+| `StaticDrop-5Eq` | `StaticDrop`, `5Eq` (default) | `FIVEEQS` | 2 | Viscous liquid drop at rest in a gas with [surface tension](user-guide/models.md#surface-tension) (`-DSURFACE_TENSION=true`), Laplace number 12000; pressure jump, spurious currents and momentum in CSV, with the initial pressure projection, both energy forms, ACDI, THINC, the stress without smoothing and AMR |
+| `StaticDrop-5Eq-N` | `StaticDrop`, `5Eq-N` | `FIVEEQS_NPHASE`, 3 phases | 2 | As `StaticDrop-5Eq`, with a third phase that stays absent |
+| `StaticDrop-6Eq` | `StaticDrop`, `6Eq` | `SIXEQS` | 2 | As `StaticDrop-5Eq`, with pressure relaxation |
+| `StaticDrop-6Eq-N` | `StaticDrop`, `6Eq-N` | `SIXEQS_IE_NPHASE`, 3 phases | 2 | As `StaticDrop-6Eq`, with a third phase that stays absent |
 | `COMPAS-STL-5Eq` | `COMPAS-STL-5Eq` | `FIVEEQS` | 2 | A solid read from an STL file falls into a pool; STL reader, gravity source term, viscosity, THINC, on CPUs |
 | `RichtmyerMeshkov-5Eq` | `RichtmyerMeshkov-5Eq` | `FIVEEQS` | 2 | Single-mode Richtmyer-Meshkov instability ([against experiment](verification.md#single-mode-richtmyer-meshkov-instability)); interface diagnostics with ghost cells, checkpoint and restart |
 | `RichtmyerMeshkov-Multimode-5Eq` | `RichtmyerMeshkov-Multimode-5Eq` | `FIVEEQS` | 2 | Multimode Richtmyer-Meshkov instability; parameter arrays sized at run time and copied to the GPU |
